@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DAX Validator</title>
+</head>
+<body>
+  <div id="app">
+    <header id="toolbar">
+      <h1 data-i18n="app.title">DAX Validator</h1>
+      <div id="toolbar-actions">
+        <button id="btn-format" data-i18n="app.btn_format" data-i18n-title="app.btn_format_title" title="DAX opmaken (Shift+Alt+F)">Opmaak</button>
+        <button id="btn-copy" data-i18n="app.btn_copy" data-i18n-title="app.btn_copy_title" title="Opgemaakte DAX kopiëren">Kopieer</button>
+        <button id="btn-theme" title="Thema wisselen">&#9790;</button>
+      </div>
+    </header>
+    <main id="workspace">
+      <div id="editor-pane"></div>
+      <div id="side-panel">
+        <div id="side-tabs">
+          <button class="tab active" data-panel="function-help" data-i18n="tab.function_help">Functiehulp</button>
+          <button class="tab" data-panel="best-practices" data-i18n="tab.best_practices">Best practices</button>
+          <button class="tab" data-panel="model-browser" data-i18n="tab.model_browser">Model Browser</button>
+          <button class="tab" data-panel="expression-library" data-i18n="tab.expression_library">Opgeslagen</button>
+        </div>
+        <div id="side-content">
+          <div id="function-help-panel" class="panel-content active"></div>
+          <div id="best-practices-panel" class="panel-content"></div>
+          <div id="model-browser-panel" class="panel-content"></div>
+          <div id="expression-library-panel" class="panel-content"></div>
+        </div>
+      </div>
+    </main>
+    <footer id="diagnostics-pane">
+      <div id="diagnostics-header">
+        <div id="diagnostics-tabs">
+          <button class="diag-tab active" data-severity="all">
+            <span data-i18n="diag.all">Alles</span> <span class="badge" id="badge-all">0</span>
+          </button>
+          <button class="diag-tab" data-severity="error">
+            <span data-i18n="diag.errors">Fouten</span> <span class="badge error" id="badge-errors">0</span>
+          </button>
+          <button class="diag-tab" data-severity="warning">
+            <span data-i18n="diag.warnings">Waarschuwingen</span> <span class="badge warning" id="badge-warnings">0</span>
+          </button>
+          <button class="diag-tab" data-severity="info">
+            <span data-i18n="diag.info">Info</span> <span class="badge info" id="badge-info">0</span>
+          </button>
+        </div>
+      </div>
+      <div id="diagnostics-list"></div>
+    </footer>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

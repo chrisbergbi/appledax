@@ -1,0 +1,2487 @@
+[
+  {
+    "name": "CALCULATE",
+    "category": "Filter",
+    "signatures": ["CALCULATE(<expression>, <filter1>, <filter2>, ...)"],
+    "description_short": "Evaluates an expression in a modified filter context.",
+    "params": [
+      { "name": "expression", "type": "Scalar", "description": "The expression to evaluate", "required": true },
+      { "name": "filter1", "type": "Boolean/Table", "description": "A filter expression or table expression to apply", "required": false }
+    ],
+    "returns": "Scalar",
+    "notes": ["Triggers context transition when used within a row context", "Filters can be boolean expressions or FILTER/ALL table expressions"],
+    "pitfalls": ["Context transition inside iterators may cause unexpected results", "Boolean filter arguments overwrite existing filters on the same column"],
+    "examples": ["CALCULATE(SUM(Sales[Amount]), Product[Color] = \"Red\")", "CALCULATE([Total Sales], REMOVEFILTERS(Product))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/calculate-function-dax"
+  },
+  {
+    "name": "CALCULATETABLE",
+    "category": "Filter",
+    "signatures": ["CALCULATETABLE(<expression>, <filter1>, <filter2>, ...)"],
+    "description_short": "Evaluates a table expression in a modified filter context.",
+    "params": [
+      { "name": "expression", "type": "Table", "description": "The table expression to evaluate", "required": true },
+      { "name": "filter1", "type": "Boolean/Table", "description": "A filter to apply", "required": false }
+    ],
+    "returns": "Table",
+    "notes": ["Table equivalent of CALCULATE", "Useful for passing filtered tables to other functions"],
+    "pitfalls": ["Same context transition behavior as CALCULATE"],
+    "examples": ["CALCULATETABLE(VALUES(Product[Color]), Sales[Amount] > 100)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/calculatetable-function-dax"
+  },
+  {
+    "name": "FILTER",
+    "category": "Filter",
+    "signatures": ["FILTER(<table>, <filterExpression>)"],
+    "description_short": "Returns a table that represents a subset of another table or expression.",
+    "params": [
+      { "name": "table", "type": "Table", "description": "The table to filter", "required": true },
+      { "name": "filterExpression", "type": "Boolean", "description": "A Boolean expression evaluated for each row", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Iterates row-by-row, so performance depends on table size", "Can be used as a filter argument in CALCULATE"],
+    "pitfalls": ["FILTER(ALL(FactTable), ...) can be very slow on large tables", "Using FILTER when a simple boolean filter in CALCULATE would suffice"],
+    "examples": ["FILTER(ALL(Product), Product[Color] = \"Red\")", "CALCULATE([Sales], FILTER(ALL(Date), Date[Year] = 2023))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/filter-function-dax"
+  },
+  {
+    "name": "ALL",
+    "category": "Filter",
+    "signatures": ["ALL(<table>)", "ALL(<column1>, <column2>, ...)"],
+    "description_short": "Returns all rows in a table, or all values in a column, ignoring any filters.",
+    "params": [
+      { "name": "table/column", "type": "Table/Column", "description": "A table or column reference", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Removes all filters from the specified table or columns", "Used inside CALCULATE to remove context"],
+    "pitfalls": ["ALL() on a table removes filters on all columns including related tables via relationships", "Consider REMOVEFILTERS as a more readable alternative"],
+    "examples": ["CALCULATE([Sales], ALL(Product))", "DIVIDE([Sales], CALCULATE([Sales], ALL(Product)))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/all-function-dax"
+  },
+  {
+    "name": "ALLEXCEPT",
+    "category": "Filter",
+    "signatures": ["ALLEXCEPT(<table>, <column1>, <column2>, ...)"],
+    "description_short": "Removes all context filters except those on the specified columns.",
+    "params": [
+      { "name": "table", "type": "Table", "description": "The table to remove filters from", "required": true },
+      { "name": "column1", "type": "Column", "description": "A column to keep filters on", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Shorthand for ALL with selective filter preservation", "Also removes filters on related tables"],
+    "pitfalls": ["Removes filters on columns from related tables too, unlike a combination of REMOVEFILTERS"],
+    "examples": ["CALCULATE([Sales], ALLEXCEPT(Product, Product[Category]))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/allexcept-function-dax"
+  },
+  {
+    "name": "VALUES",
+    "category": "Filter",
+    "signatures": ["VALUES(<column>)", "VALUES(<table>)"],
+    "description_short": "Returns a one-column table of distinct values, respecting filters. Adds blank row if present.",
+    "params": [
+      { "name": "column/table", "type": "Column/Table", "description": "A column or table reference", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Includes the blank row if there are missing values from relationships", "In a scalar context, returns the single value if only one exists"],
+    "pitfalls": ["Returns blank row unlike DISTINCT which excludes it", "Use HASONEVALUE to check before converting to scalar"],
+    "examples": ["IF(HASONEVALUE(Product[Color]), VALUES(Product[Color]), \"Multiple\")"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/values-function-dax"
+  },
+  {
+    "name": "KEEPFILTERS",
+    "category": "Filter",
+    "signatures": ["KEEPFILTERS(<expression>)"],
+    "description_short": "Modifies how filters are applied in CALCULATE, intersecting instead of overwriting.",
+    "params": [
+      { "name": "expression", "type": "Boolean/Table", "description": "A filter expression", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Without KEEPFILTERS, CALCULATE filters overwrite existing column filters", "With KEEPFILTERS, the new filter intersects with existing filters"],
+    "pitfalls": ["Can produce unexpected empty results if the intersection is empty"],
+    "examples": ["CALCULATE([Sales], KEEPFILTERS(Product[Color] = \"Red\"))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/keepfilters-function-dax"
+  },
+  {
+    "name": "REMOVEFILTERS",
+    "category": "Filter",
+    "signatures": ["REMOVEFILTERS()", "REMOVEFILTERS(<table>)", "REMOVEFILTERS(<column1>, <column2>, ...)"],
+    "description_short": "Clears filters from specified tables or columns. A more readable alternative to ALL as a CALCULATE modifier.",
+    "params": [
+      { "name": "table/column", "type": "Table/Column", "description": "Optional table or columns to clear filters from", "required": false }
+    ],
+    "returns": "Table",
+    "notes": ["Semantically identical to ALL when used inside CALCULATE", "More readable and explicit about intent"],
+    "pitfalls": ["Without arguments, removes ALL filters in the entire model"],
+    "examples": ["CALCULATE([Sales], REMOVEFILTERS(Product[Color]))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/removefilters-function-dax"
+  },
+  {
+    "name": "TREATAS",
+    "category": "Filter",
+    "signatures": ["TREATAS(<expression>, <column1>, <column2>, ...)"],
+    "description_short": "Applies the result of a table expression as filters to columns in an unrelated table.",
+    "params": [
+      { "name": "expression", "type": "Table", "description": "A table expression", "required": true },
+      { "name": "column1", "type": "Column", "description": "Target column to apply filter to", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Creates a virtual relationship between tables", "More performant than INTERSECT/FILTER combinations"],
+    "pitfalls": ["Column data types must match between source and target"],
+    "examples": ["CALCULATE([Sales], TREATAS(VALUES(Budget[Product]), Product[Product]))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/treatas-function-dax"
+  },
+  {
+    "name": "SUM",
+    "category": "Aggregation",
+    "signatures": ["SUM(<column>)"],
+    "description_short": "Adds all the numbers in a column.",
+    "params": [
+      { "name": "column", "type": "Column", "description": "The column containing numbers to sum", "required": true }
+    ],
+    "returns": "Decimal",
+    "notes": ["Only works with column references, not expressions", "For expressions, use SUMX"],
+    "pitfalls": ["Cannot use SUM with calculated expressions; use SUMX instead"],
+    "examples": ["Total Sales = SUM(Sales[Amount])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/sum-function-dax"
+  },
+  {
+    "name": "SUMX",
+    "category": "Aggregation",
+    "signatures": ["SUMX(<table>, <expression>)"],
+    "description_short": "Returns the sum of an expression evaluated for each row in a table.",
+    "params": [
+      { "name": "table", "type": "Table", "description": "The table over which to iterate", "required": true },
+      { "name": "expression", "type": "Scalar", "description": "Expression evaluated for each row", "required": true }
+    ],
+    "returns": "Decimal",
+    "notes": ["Iterator function - evaluates expression row by row", "Creates a row context for the expression"],
+    "pitfalls": ["Performance can degrade on very large tables", "Be aware of context transition if using CALCULATE inside the expression"],
+    "examples": ["SUMX(Sales, Sales[Quantity] * Sales[UnitPrice])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/sumx-function-dax"
+  },
+  {
+    "name": "AVERAGE",
+    "category": "Aggregation",
+    "signatures": ["AVERAGE(<column>)"],
+    "description_short": "Returns the average (arithmetic mean) of all numbers in a column.",
+    "params": [
+      { "name": "column", "type": "Column", "description": "Column containing numbers to average", "required": true }
+    ],
+    "returns": "Decimal",
+    "notes": ["Ignores blank values", "Only works with column references"],
+    "pitfalls": ["Blanks are excluded from the count, which may differ from expected behavior"],
+    "examples": ["Average Price = AVERAGE(Products[Price])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/average-function-dax"
+  },
+  {
+    "name": "AVERAGEX",
+    "category": "Aggregation",
+    "signatures": ["AVERAGEX(<table>, <expression>)"],
+    "description_short": "Calculates the average of an expression evaluated for each row in a table.",
+    "params": [
+      { "name": "table", "type": "Table", "description": "The table over which to iterate", "required": true },
+      { "name": "expression", "type": "Scalar", "description": "Expression evaluated for each row", "required": true }
+    ],
+    "returns": "Decimal",
+    "notes": ["Iterator function, similar to SUMX but computes average"],
+    "pitfalls": ["Blank expression results are excluded from the average"],
+    "examples": ["AVERAGEX(Sales, Sales[Quantity] * Sales[UnitPrice])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/averagex-function-dax"
+  },
+  {
+    "name": "COUNT",
+    "category": "Aggregation",
+    "signatures": ["COUNT(<column>)"],
+    "description_short": "Counts the number of rows that contain non-blank values in a column.",
+    "params": [
+      { "name": "column", "type": "Column", "description": "Column to count non-blank values in", "required": true }
+    ],
+    "returns": "Integer",
+    "notes": ["Only counts non-blank values", "For counting all rows including blanks, use COUNTROWS"],
+    "pitfalls": ["Does not count blank values; use COUNTA for text columns"],
+    "examples": ["COUNT(Sales[OrderID])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/count-function-dax"
+  },
+  {
+    "name": "COUNTROWS",
+    "category": "Aggregation",
+    "signatures": ["COUNTROWS(<table>)"],
+    "description_short": "Counts the number of rows in a table.",
+    "params": [
+      { "name": "table", "type": "Table", "description": "The table to count rows in", "required": true }
+    ],
+    "returns": "Integer",
+    "notes": ["Counts all rows including those with blank values", "Works with any table expression"],
+    "pitfalls": ["Returns blank (not 0) if the table is empty"],
+    "examples": ["COUNTROWS(Sales)", "COUNTROWS(FILTER(Sales, Sales[Amount] > 100))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/countrows-function-dax"
+  },
+  {
+    "name": "DISTINCTCOUNT",
+    "category": "Aggregation",
+    "signatures": ["DISTINCTCOUNT(<column>)"],
+    "description_short": "Counts the number of distinct values in a column.",
+    "params": [
+      { "name": "column", "type": "Column", "description": "Column to count distinct values in", "required": true }
+    ],
+    "returns": "Integer",
+    "notes": ["Includes blank as a distinct value if present", "Equivalent to COUNTROWS(DISTINCT(column))"],
+    "pitfalls": ["Counts blank as a value, which may inflate count by 1"],
+    "examples": ["Unique Customers = DISTINCTCOUNT(Sales[CustomerID])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/distinctcount-function-dax"
+  },
+  {
+    "name": "MAX",
+    "category": "Aggregation",
+    "signatures": ["MAX(<column>)", "MAX(<expression1>, <expression2>)"],
+    "description_short": "Returns the largest value in a column or between two scalar expressions.",
+    "params": [
+      { "name": "column", "type": "Column", "description": "Column to find maximum in", "required": true }
+    ],
+    "returns": "Scalar",
+    "notes": ["With two arguments, works like a scalar MAX comparison", "Ignores blank values"],
+    "pitfalls": ["Two-argument form is scalar only, not row-by-row"],
+    "examples": ["MAX(Sales[Amount])", "MAX(Sales[Amount], 0)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/max-function-dax"
+  },
+  {
+    "name": "MAXX",
+    "category": "Aggregation",
+    "signatures": ["MAXX(<table>, <expression>)"],
+    "description_short": "Returns the largest value of an expression evaluated for each row.",
+    "params": [
+      { "name": "table", "type": "Table", "description": "Table to iterate over", "required": true },
+      { "name": "expression", "type": "Scalar", "description": "Expression evaluated per row", "required": true }
+    ],
+    "returns": "Scalar",
+    "notes": ["Iterator function, useful for finding max of calculated values"],
+    "pitfalls": ["Performance depends on table size"],
+    "examples": ["MAXX(Sales, Sales[Quantity] * Sales[UnitPrice])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/maxx-function-dax"
+  },
+  {
+    "name": "MIN",
+    "category": "Aggregation",
+    "signatures": ["MIN(<column>)", "MIN(<expression1>, <expression2>)"],
+    "description_short": "Returns the smallest value in a column or between two scalar expressions.",
+    "params": [
+      { "name": "column", "type": "Column", "description": "Column to find minimum in", "required": true }
+    ],
+    "returns": "Scalar",
+    "notes": ["Ignores blank values", "Two-argument form is scalar comparison"],
+    "pitfalls": [],
+    "examples": ["MIN(Sales[Amount])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/min-function-dax"
+  },
+  {
+    "name": "MINX",
+    "category": "Aggregation",
+    "signatures": ["MINX(<table>, <expression>)"],
+    "description_short": "Returns the smallest value of an expression evaluated for each row.",
+    "params": [
+      { "name": "table", "type": "Table", "description": "Table to iterate over", "required": true },
+      { "name": "expression", "type": "Scalar", "description": "Expression evaluated per row", "required": true }
+    ],
+    "returns": "Scalar",
+    "notes": ["Iterator function"],
+    "pitfalls": [],
+    "examples": ["MINX(Sales, Sales[Quantity] * Sales[UnitPrice])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/minx-function-dax"
+  },
+  {
+    "name": "RANKX",
+    "category": "Aggregation",
+    "signatures": ["RANKX(<table>, <expression>, <value>, <order>, <ties>)"],
+    "description_short": "Returns the ranking of a number in a list of numbers for each row in a table.",
+    "params": [
+      { "name": "table", "type": "Table", "description": "Table defining the list to rank against", "required": true },
+      { "name": "expression", "type": "Scalar", "description": "Expression evaluated for each row to create ranking list", "required": true },
+      { "name": "value", "type": "Scalar", "description": "The value to find rank for (optional, defaults to expression in current context)", "required": false },
+      { "name": "order", "type": "Enum", "description": "ASC or DESC (default: DESC)", "required": false },
+      { "name": "ties", "type": "Enum", "description": "DENSE or SKIP (default: SKIP)", "required": false }
+    ],
+    "returns": "Integer",
+    "notes": ["Commonly used in calculated columns and with ALL() in the table argument"],
+    "pitfalls": ["Expensive on large tables", "Context transition can affect results unexpectedly"],
+    "examples": ["RANKX(ALL(Product), [Total Sales])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/rankx-function-dax"
+  },
+  {
+    "name": "IF",
+    "category": "Logical",
+    "signatures": ["IF(<logicalTest>, <resultIfTrue>, <resultIfFalse>)"],
+    "description_short": "Checks a condition and returns one of two values.",
+    "params": [
+      { "name": "logicalTest", "type": "Boolean", "description": "A value or expression that returns TRUE or FALSE", "required": true },
+      { "name": "resultIfTrue", "type": "Scalar", "description": "Value returned when condition is TRUE", "required": true },
+      { "name": "resultIfFalse", "type": "Scalar", "description": "Value returned when condition is FALSE (default: BLANK())", "required": false }
+    ],
+    "returns": "Scalar",
+    "notes": ["Third parameter is optional; defaults to BLANK()", "Consider SWITCH for multiple conditions"],
+    "pitfalls": ["Deeply nested IFs are hard to read; use SWITCH(TRUE(), ...) instead", "Both branches may be evaluated for type checking"],
+    "examples": ["IF([Sales] > 1000, \"High\", \"Low\")", "IF(ISBLANK([Value]), 0, [Value])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/if-function-dax"
+  },
+  {
+    "name": "SWITCH",
+    "category": "Logical",
+    "signatures": ["SWITCH(<expression>, <value1>, <result1>, <value2>, <result2>, ..., <else>)"],
+    "description_short": "Evaluates an expression against a list of values and returns the corresponding result.",
+    "params": [
+      { "name": "expression", "type": "Scalar", "description": "The expression to evaluate", "required": true },
+      { "name": "value1", "type": "Scalar", "description": "A value to match against", "required": true },
+      { "name": "result1", "type": "Scalar", "description": "Result if expression matches value1", "required": true },
+      { "name": "else", "type": "Scalar", "description": "Default result if no match (optional)", "required": false }
+    ],
+    "returns": "Scalar",
+    "notes": ["Use SWITCH(TRUE(), ...) for multiple conditions as an IF replacement", "More readable than nested IFs"],
+    "pitfalls": ["All result expressions must return the same data type"],
+    "examples": ["SWITCH(TRUE(), [Sales] > 1000, \"High\", [Sales] > 500, \"Medium\", \"Low\")", "SWITCH([DayOfWeek], 1, \"Sun\", 2, \"Mon\", 3, \"Tue\", \"Other\")"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/switch-function-dax"
+  },
+  {
+    "name": "AND",
+    "category": "Logical",
+    "signatures": ["AND(<logical1>, <logical2>)"],
+    "description_short": "Checks whether both arguments are TRUE.",
+    "params": [
+      { "name": "logical1", "type": "Boolean", "description": "First logical expression", "required": true },
+      { "name": "logical2", "type": "Boolean", "description": "Second logical expression", "required": true }
+    ],
+    "returns": "Boolean",
+    "notes": ["Can also use && operator as shorthand", "Only accepts two arguments; nest for more"],
+    "pitfalls": ["For more than two conditions, use && operator which chains naturally"],
+    "examples": ["AND([Sales] > 100, [Quantity] > 5)", "[Sales] > 100 && [Quantity] > 5"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/and-function-dax"
+  },
+  {
+    "name": "OR",
+    "category": "Logical",
+    "signatures": ["OR(<logical1>, <logical2>)"],
+    "description_short": "Checks whether one of the arguments is TRUE.",
+    "params": [
+      { "name": "logical1", "type": "Boolean", "description": "First logical expression", "required": true },
+      { "name": "logical2", "type": "Boolean", "description": "Second logical expression", "required": true }
+    ],
+    "returns": "Boolean",
+    "notes": ["Can also use || operator as shorthand"],
+    "pitfalls": [],
+    "examples": ["OR([Sales] > 100, [Quantity] > 5)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/or-function-dax"
+  },
+  {
+    "name": "NOT",
+    "category": "Logical",
+    "signatures": ["NOT(<logical>)"],
+    "description_short": "Changes FALSE to TRUE, or TRUE to FALSE.",
+    "params": [
+      { "name": "logical", "type": "Boolean", "description": "A value or expression that returns a Boolean", "required": true }
+    ],
+    "returns": "Boolean",
+    "notes": [],
+    "pitfalls": [],
+    "examples": ["NOT([IsActive])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/not-function-dax"
+  },
+  {
+    "name": "COALESCE",
+    "category": "Logical",
+    "signatures": ["COALESCE(<expression1>, <expression2>, ...)"],
+    "description_short": "Returns the first expression that does not evaluate to BLANK.",
+    "params": [
+      { "name": "expression1", "type": "Scalar", "description": "First expression to check", "required": true },
+      { "name": "expression2", "type": "Scalar", "description": "Fallback expression", "required": true }
+    ],
+    "returns": "Scalar",
+    "notes": ["Accepts any number of arguments", "More concise than nested IF(ISBLANK(...), ..., ...)"],
+    "pitfalls": ["All expressions must be of compatible types"],
+    "examples": ["COALESCE([Sales], [Budget], 0)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/coalesce-function-dax"
+  },
+  {
+    "name": "DIVIDE",
+    "category": "Math",
+    "signatures": ["DIVIDE(<numerator>, <denominator>, <alternateResult>)"],
+    "description_short": "Performs division and returns alternate result on division by zero.",
+    "params": [
+      { "name": "numerator", "type": "Decimal", "description": "The dividend", "required": true },
+      { "name": "denominator", "type": "Decimal", "description": "The divisor", "required": true },
+      { "name": "alternateResult", "type": "Scalar", "description": "Value returned when divisor is 0 (default: BLANK())", "required": false }
+    ],
+    "returns": "Decimal",
+    "notes": ["Safe division: avoids division by zero errors", "Preferred over the / operator"],
+    "pitfalls": ["Third parameter defaults to BLANK(), not 0"],
+    "examples": ["DIVIDE([Sales], [Quantity])", "DIVIDE([Sales], [Quantity], 0)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/divide-function-dax"
+  },
+  {
+    "name": "ROUND",
+    "category": "Math",
+    "signatures": ["ROUND(<number>, <numDigits>)"],
+    "description_short": "Rounds a number to the specified number of digits.",
+    "params": [
+      { "name": "number", "type": "Decimal", "description": "The number to round", "required": true },
+      { "name": "numDigits", "type": "Integer", "description": "Number of decimal places", "required": true }
+    ],
+    "returns": "Decimal",
+    "notes": ["Negative numDigits rounds to the left of the decimal"],
+    "pitfalls": [],
+    "examples": ["ROUND(3.14159, 2)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/round-function-dax"
+  },
+  {
+    "name": "ABS",
+    "category": "Math",
+    "signatures": ["ABS(<number>)"],
+    "description_short": "Returns the absolute value of a number.",
+    "params": [
+      { "name": "number", "type": "Decimal", "description": "The number to get absolute value of", "required": true }
+    ],
+    "returns": "Decimal",
+    "notes": [],
+    "pitfalls": [],
+    "examples": ["ABS(-5)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/abs-function-dax"
+  },
+  {
+    "name": "INT",
+    "category": "Math",
+    "signatures": ["INT(<number>)"],
+    "description_short": "Rounds a number down to the nearest integer.",
+    "params": [
+      { "name": "number", "type": "Decimal", "description": "The number to round down", "required": true }
+    ],
+    "returns": "Integer",
+    "notes": ["Always rounds towards negative infinity"],
+    "pitfalls": ["INT(-1.5) returns -2, not -1"],
+    "examples": ["INT(3.7)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/int-function-dax"
+  },
+  {
+    "name": "RELATED",
+    "category": "Relationship",
+    "signatures": ["RELATED(<column>)"],
+    "description_short": "Returns a related value from another table using an existing relationship.",
+    "params": [
+      { "name": "column", "type": "Column", "description": "A column from a related table", "required": true }
+    ],
+    "returns": "Scalar",
+    "notes": ["Follows many-to-one relationships", "Requires an active relationship between tables"],
+    "pitfalls": ["Only works in row context (calculated columns or iterators)", "Cannot traverse one-to-many; use RELATEDTABLE instead"],
+    "examples": ["RELATED(Product[Category])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/related-function-dax"
+  },
+  {
+    "name": "RELATEDTABLE",
+    "category": "Relationship",
+    "signatures": ["RELATEDTABLE(<table>)"],
+    "description_short": "Returns a table of rows related to the current row via relationships.",
+    "params": [
+      { "name": "table", "type": "Table", "description": "The related table", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Follows one-to-many relationships", "Equivalent to CALCULATETABLE(<table>) in row context"],
+    "pitfalls": ["Requires row context to work"],
+    "examples": ["COUNTROWS(RELATEDTABLE(Sales))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/relatedtable-function-dax"
+  },
+  {
+    "name": "USERELATIONSHIP",
+    "category": "Relationship",
+    "signatures": ["USERELATIONSHIP(<column1>, <column2>)"],
+    "description_short": "Activates an inactive relationship between two columns for the duration of the calculation.",
+    "params": [
+      { "name": "column1", "type": "Column", "description": "First column in the relationship", "required": true },
+      { "name": "column2", "type": "Column", "description": "Second column in the relationship", "required": true }
+    ],
+    "returns": "N/A (modifier)",
+    "notes": ["Can only be used inside CALCULATE or CALCULATETABLE", "Only one relationship between two tables can be active at a time"],
+    "pitfalls": ["The relationship must already exist in the model as inactive"],
+    "examples": ["CALCULATE([Sales], USERELATIONSHIP(Sales[DeliveryDate], Date[Date]))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/userelationship-function-dax"
+  },
+  {
+    "name": "DATEADD",
+    "category": "Time Intelligence",
+    "signatures": ["DATEADD(<dates>, <numberOfIntervals>, <interval>)"],
+    "description_short": "Returns a table of dates shifted by the specified interval.",
+    "params": [
+      { "name": "dates", "type": "Column", "description": "A date column (must be from a marked date table)", "required": true },
+      { "name": "numberOfIntervals", "type": "Integer", "description": "Number of intervals to shift (negative for past)", "required": true },
+      { "name": "interval", "type": "Enum", "description": "DAY, MONTH, QUARTER, or YEAR", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Requires a marked date table in the model", "Commonly used inside CALCULATE"],
+    "pitfalls": ["Only works with contiguous date ranges", "The date column must be from a date table"],
+    "examples": ["CALCULATE([Sales], DATEADD(Date[Date], -1, YEAR))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/dateadd-function-dax"
+  },
+  {
+    "name": "DATESYTD",
+    "category": "Time Intelligence",
+    "signatures": ["DATESYTD(<dates>, <yearEndDate>)"],
+    "description_short": "Returns a table of dates from the beginning of the year up to the last date in the filter context.",
+    "params": [
+      { "name": "dates", "type": "Column", "description": "A date column", "required": true },
+      { "name": "yearEndDate", "type": "String", "description": "Optional year end date string (default: Dec 31)", "required": false }
+    ],
+    "returns": "Table",
+    "notes": ["Used for Year-to-Date calculations", "Second parameter allows fiscal year end dates"],
+    "pitfalls": ["Requires a marked date table"],
+    "examples": ["CALCULATE([Sales], DATESYTD(Date[Date]))", "CALCULATE([Sales], DATESYTD(Date[Date], \"06-30\"))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/datesytd-function-dax"
+  },
+  {
+    "name": "TOTALYTD",
+    "category": "Time Intelligence",
+    "signatures": ["TOTALYTD(<expression>, <dates>, <filter>, <yearEndDate>)"],
+    "description_short": "Evaluates an expression for year-to-date in the current context.",
+    "params": [
+      { "name": "expression", "type": "Scalar", "description": "Expression to evaluate", "required": true },
+      { "name": "dates", "type": "Column", "description": "A date column", "required": true },
+      { "name": "filter", "type": "Boolean", "description": "Optional additional filter", "required": false },
+      { "name": "yearEndDate", "type": "String", "description": "Optional fiscal year end date", "required": false }
+    ],
+    "returns": "Scalar",
+    "notes": ["Shorthand for CALCULATE(<expression>, DATESYTD(<dates>))"],
+    "pitfalls": ["Less flexible than explicit CALCULATE + DATESYTD"],
+    "examples": ["TOTALYTD([Sales], Date[Date])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/totalytd-function-dax"
+  },
+  {
+    "name": "SAMEPERIODLASTYEAR",
+    "category": "Time Intelligence",
+    "signatures": ["SAMEPERIODLASTYEAR(<dates>)"],
+    "description_short": "Returns a table of dates shifted back by one year from the current filter context.",
+    "params": [
+      { "name": "dates", "type": "Column", "description": "A date column", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Equivalent to DATEADD(<dates>, -1, YEAR)", "Used for year-over-year comparisons"],
+    "pitfalls": ["Requires contiguous dates and a marked date table"],
+    "examples": ["CALCULATE([Sales], SAMEPERIODLASTYEAR(Date[Date]))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/sameperiodlastyear-function-dax"
+  },
+  {
+    "name": "ADDCOLUMNS",
+    "category": "Table",
+    "signatures": ["ADDCOLUMNS(<table>, <name1>, <expression1>, <name2>, <expression2>, ...)"],
+    "description_short": "Adds calculated columns to a table expression.",
+    "params": [
+      { "name": "table", "type": "Table", "description": "The base table", "required": true },
+      { "name": "name1", "type": "String", "description": "Name for the new column", "required": true },
+      { "name": "expression1", "type": "Scalar", "description": "Expression for the column values", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Creates row context for each expression", "Useful with SUMMARIZE for adding measures to grouped results"],
+    "pitfalls": ["Performance: avoid iterating over large fact tables with complex expressions"],
+    "examples": ["ADDCOLUMNS(VALUES(Product[Category]), \"Total\", [Total Sales])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/addcolumns-function-dax"
+  },
+  {
+    "name": "SELECTCOLUMNS",
+    "category": "Table",
+    "signatures": ["SELECTCOLUMNS(<table>, <name1>, <expression1>, ...)"],
+    "description_short": "Returns a table with selected columns from a table expression.",
+    "params": [
+      { "name": "table", "type": "Table", "description": "The source table", "required": true },
+      { "name": "name1", "type": "String", "description": "Name for the output column", "required": true },
+      { "name": "expression1", "type": "Scalar", "description": "Expression to compute column values", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Only includes columns you explicitly specify", "Can rename and transform columns"],
+    "pitfalls": ["The resulting table loses data lineage (columns are disconnected from original)"],
+    "examples": ["SELECTCOLUMNS(Product, \"Name\", Product[ProductName], \"Cat\", Product[Category])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/selectcolumns-function-dax"
+  },
+  {
+    "name": "SUMMARIZE",
+    "category": "Table",
+    "signatures": ["SUMMARIZE(<table>, <groupBy1>, <groupBy2>, ...)"],
+    "description_short": "Returns a summary table grouped by the specified columns.",
+    "params": [
+      { "name": "table", "type": "Table", "description": "The table to summarize", "required": true },
+      { "name": "groupBy1", "type": "Column", "description": "Column to group by", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Prefer SUMMARIZECOLUMNS for better performance", "Can add extension columns but this is not recommended"],
+    "pitfalls": ["Adding calculated columns directly in SUMMARIZE is deprecated; use ADDCOLUMNS(SUMMARIZE(...), ...) instead"],
+    "examples": ["SUMMARIZE(Sales, Product[Category], Product[SubCategory])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/summarize-function-dax"
+  },
+  {
+    "name": "SUMMARIZECOLUMNS",
+    "category": "Table",
+    "signatures": ["SUMMARIZECOLUMNS(<groupBy1>, <groupBy2>, ..., <filterTable>, <name>, <expression>, ...)"],
+    "description_short": "Groups by specified columns and optionally adds measures. Highly optimized.",
+    "params": [
+      { "name": "groupBy1", "type": "Column", "description": "Column to group by", "required": true },
+      { "name": "filterTable", "type": "Table", "description": "Optional filter table", "required": false },
+      { "name": "name", "type": "String", "description": "Name for extension column", "required": false },
+      { "name": "expression", "type": "Scalar", "description": "Expression for extension column", "required": false }
+    ],
+    "returns": "Table",
+    "notes": ["Optimized by the engine; preferred over SUMMARIZE + ADDCOLUMNS", "Cannot be used in measures; only in queries and calculated tables"],
+    "pitfalls": ["Not usable inside measures", "Automatically removes blank rows"],
+    "examples": ["SUMMARIZECOLUMNS(Product[Category], \"Total\", SUM(Sales[Amount]))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/summarizecolumns-function-dax"
+  },
+  {
+    "name": "TOPN",
+    "category": "Table",
+    "signatures": ["TOPN(<n>, <table>, <expression>, <order>)"],
+    "description_short": "Returns the top N rows of a table sorted by an expression.",
+    "params": [
+      { "name": "n", "type": "Integer", "description": "Number of rows to return", "required": true },
+      { "name": "table", "type": "Table", "description": "The table to select from", "required": true },
+      { "name": "expression", "type": "Scalar", "description": "Expression to sort by", "required": true },
+      { "name": "order", "type": "Enum", "description": "ASC or DESC (default: DESC)", "required": false }
+    ],
+    "returns": "Table",
+    "notes": ["May return more than N rows in case of ties", "Useful with CALCULATE for top-N filtering"],
+    "pitfalls": ["Ties can cause more rows than expected"],
+    "examples": ["TOPN(10, Product, [Total Sales], DESC)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/topn-function-dax"
+  },
+  {
+    "name": "UNION",
+    "category": "Table",
+    "signatures": ["UNION(<table1>, <table2>, ...)"],
+    "description_short": "Creates a union (concatenation) of two or more tables.",
+    "params": [
+      { "name": "table1", "type": "Table", "description": "First table", "required": true },
+      { "name": "table2", "type": "Table", "description": "Second table", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Tables must have the same number of columns", "Does not remove duplicates"],
+    "pitfalls": ["Column data types must match by position"],
+    "examples": ["UNION(Table1, Table2)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/union-function-dax"
+  },
+  {
+    "name": "INTERSECT",
+    "category": "Table",
+    "signatures": ["INTERSECT(<table1>, <table2>)"],
+    "description_short": "Returns rows that appear in both tables.",
+    "params": [
+      { "name": "table1", "type": "Table", "description": "First table", "required": true },
+      { "name": "table2", "type": "Table", "description": "Second table", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Returns only rows from table1 that also exist in table2"],
+    "pitfalls": ["Column count and types must match"],
+    "examples": ["INTERSECT(VALUES(Sales[Product]), VALUES(Budget[Product]))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/intersect-function-dax"
+  },
+  {
+    "name": "EXCEPT",
+    "category": "Table",
+    "signatures": ["EXCEPT(<table1>, <table2>)"],
+    "description_short": "Returns rows from table1 that do not appear in table2.",
+    "params": [
+      { "name": "table1", "type": "Table", "description": "The base table", "required": true },
+      { "name": "table2", "type": "Table", "description": "Table to exclude", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Useful for finding missing or unmatched rows"],
+    "pitfalls": ["Column count and types must match"],
+    "examples": ["EXCEPT(VALUES(Product[ID]), VALUES(Sales[ProductID]))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/except-function-dax"
+  },
+  {
+    "name": "GENERATE",
+    "category": "Table",
+    "signatures": ["GENERATE(<table1>, <table2>)"],
+    "description_short": "Returns a cross-join of table1 with table2, evaluating table2 for each row of table1.",
+    "params": [
+      { "name": "table1", "type": "Table", "description": "The base table", "required": true },
+      { "name": "table2", "type": "Table", "description": "Table expression evaluated per row of table1", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["If table2 returns empty for a row, that row is excluded", "Use GENERATEALL to keep rows with empty table2"],
+    "pitfalls": ["Can produce very large result sets"],
+    "examples": ["GENERATE(VALUES(Product[Category]), TOPN(3, Product, [Sales]))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/generate-function-dax"
+  },
+  {
+    "name": "ROW",
+    "category": "Table",
+    "signatures": ["ROW(<name1>, <expression1>, <name2>, <expression2>, ...)"],
+    "description_short": "Returns a single-row table with the specified columns and values.",
+    "params": [
+      { "name": "name1", "type": "String", "description": "Column name", "required": true },
+      { "name": "expression1", "type": "Scalar", "description": "Column value", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Useful for creating inline single-row tables"],
+    "pitfalls": [],
+    "examples": ["ROW(\"Total\", SUM(Sales[Amount]), \"Count\", COUNTROWS(Sales))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/row-function-dax"
+  },
+  {
+    "name": "LOOKUPVALUE",
+    "category": "Information",
+    "signatures": ["LOOKUPVALUE(<result_column>, <search_column1>, <search_value1>, <search_column2>, <search_value2>, ..., <alternateResult>)"],
+    "description_short": "Returns the value for a row that meets all specified search criteria.",
+    "params": [
+      { "name": "result_column", "type": "Column", "description": "The column containing the value to return", "required": true },
+      { "name": "search_column1", "type": "Column", "description": "Column to search in", "required": true },
+      { "name": "search_value1", "type": "Scalar", "description": "Value to search for", "required": true },
+      { "name": "alternateResult", "type": "Scalar", "description": "Value if no match found (optional)", "required": false }
+    ],
+    "returns": "Scalar",
+    "notes": ["Can have multiple search column/value pairs", "Returns BLANK if no match and no alternate specified"],
+    "pitfalls": ["Returns error if multiple matches found", "Performance can be poor; prefer relationships when possible"],
+    "examples": ["LOOKUPVALUE(Product[Name], Product[ID], Sales[ProductID])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/lookupvalue-function-dax"
+  },
+  {
+    "name": "SELECTEDVALUE",
+    "category": "Information",
+    "signatures": ["SELECTEDVALUE(<column>, <alternateResult>)"],
+    "description_short": "Returns the value when there is only one value in the filter context, otherwise returns alternate result.",
+    "params": [
+      { "name": "column", "type": "Column", "description": "Column to check", "required": true },
+      { "name": "alternateResult", "type": "Scalar", "description": "Value if multiple or no values (default: BLANK())", "required": false }
+    ],
+    "returns": "Scalar",
+    "notes": ["Equivalent to IF(HASONEVALUE(col), VALUES(col), alternate)", "Commonly used for dynamic titles and conditional logic"],
+    "pitfalls": ["Returns BLANK if column has multiple values in context and no alternate is specified"],
+    "examples": ["SELECTEDVALUE(Product[Category], \"Multiple\")"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/selectedvalue-function-dax"
+  },
+  {
+    "name": "HASONEVALUE",
+    "category": "Information",
+    "signatures": ["HASONEVALUE(<column>)"],
+    "description_short": "Returns TRUE when there is only one distinct value in the specified column in the current filter context.",
+    "params": [
+      { "name": "column", "type": "Column", "description": "Column to check", "required": true }
+    ],
+    "returns": "Boolean",
+    "notes": ["Often used before VALUES() to safely extract a single value"],
+    "pitfalls": ["Consider using SELECTEDVALUE which combines both checks"],
+    "examples": ["IF(HASONEVALUE(Product[Color]), VALUES(Product[Color]), \"Multiple\")"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/hasonevalue-function-dax"
+  },
+  {
+    "name": "ISBLANK",
+    "category": "Information",
+    "signatures": ["ISBLANK(<value>)"],
+    "description_short": "Checks whether a value is BLANK.",
+    "params": [
+      { "name": "value", "type": "Scalar", "description": "The value to test", "required": true }
+    ],
+    "returns": "Boolean",
+    "notes": ["BLANK is DAX's equivalent of NULL", "Consider COALESCE as a cleaner alternative to IF(ISBLANK(...), ...)"],
+    "pitfalls": ["0 and empty string are NOT blank in DAX"],
+    "examples": ["IF(ISBLANK([Sales]), 0, [Sales])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/isblank-function-dax"
+  },
+  {
+    "name": "ISFILTERED",
+    "category": "Information",
+    "signatures": ["ISFILTERED(<column>)"],
+    "description_short": "Returns TRUE when the specified column is being directly filtered.",
+    "params": [
+      { "name": "column", "type": "Column", "description": "Column to check", "required": true }
+    ],
+    "returns": "Boolean",
+    "notes": ["Returns TRUE for direct filters, FALSE for cross-filters"],
+    "pitfalls": ["Does not detect cross-filters; use ISCROSSFILTERED for that"],
+    "examples": ["IF(ISFILTERED(Product[Color]), \"Filtered\", \"Not filtered\")"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/isfiltered-function-dax"
+  },
+  {
+    "name": "CONCATENATEX",
+    "category": "Text",
+    "signatures": ["CONCATENATEX(<table>, <expression>, <delimiter>, <orderBy>, <order>)"],
+    "description_short": "Concatenates the result of an expression evaluated for each row, with a delimiter.",
+    "params": [
+      { "name": "table", "type": "Table", "description": "Table to iterate over", "required": true },
+      { "name": "expression", "type": "String", "description": "Expression to concatenate", "required": true },
+      { "name": "delimiter", "type": "String", "description": "Separator between values (optional)", "required": false },
+      { "name": "orderBy", "type": "Scalar", "description": "Expression to sort by (optional)", "required": false },
+      { "name": "order", "type": "Enum", "description": "ASC or DESC (optional)", "required": false }
+    ],
+    "returns": "String",
+    "notes": ["Iterator function", "Useful for creating comma-separated lists"],
+    "pitfalls": ["Performance on large tables", "No built-in DISTINCT; wrap table in VALUES or DISTINCT"],
+    "examples": ["CONCATENATEX(VALUES(Product[Color]), Product[Color], \", \")"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/concatenatex-function-dax"
+  },
+  {
+    "name": "FORMAT",
+    "category": "Text",
+    "signatures": ["FORMAT(<value>, <formatString>)"],
+    "description_short": "Converts a value to text according to the specified format.",
+    "params": [
+      { "name": "value", "type": "Scalar", "description": "The value to format", "required": true },
+      { "name": "formatString", "type": "String", "description": "Format pattern string", "required": true }
+    ],
+    "returns": "String",
+    "notes": ["Returns text, not a number", "Supports custom date, number, and text formats"],
+    "pitfalls": ["Result is text and cannot be used in calculations without conversion", "Performance overhead in iterators"],
+    "examples": ["FORMAT(TODAY(), \"YYYY-MM-DD\")", "FORMAT([Sales], \"$#,##0.00\")"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/format-function-dax"
+  },
+  {
+    "name": "BLANK",
+    "category": "Other",
+    "signatures": ["BLANK()"],
+    "description_short": "Returns a blank value.",
+    "params": [],
+    "returns": "Blank",
+    "notes": ["DAX equivalent of NULL", "Propagates through most calculations"],
+    "pitfalls": ["BLANK + number = number (not blank)", "BLANK in boolean context = FALSE"],
+    "examples": ["IF([Sales] = 0, BLANK(), [Sales])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/blank-function-dax"
+  },
+  {
+    "name": "ERROR",
+    "category": "Other",
+    "signatures": ["ERROR(<message>)"],
+    "description_short": "Raises an error with the specified message.",
+    "params": [
+      { "name": "message", "type": "String", "description": "The error message text", "required": true }
+    ],
+    "returns": "N/A (throws error)",
+    "notes": ["Useful for validating inputs in measures", "Execution stops when encountered"],
+    "pitfalls": ["Cannot be caught within DAX"],
+    "examples": ["IF(ISBLANK([Input]), ERROR(\"Input is required\"), [Input])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/error-function"
+  },
+  {
+    "name": "CONTAINS",
+    "category": "Information",
+    "signatures": ["CONTAINS(<table>, <column1>, <value1>, <column2>, <value2>, ...)"],
+    "description_short": "Returns TRUE if there exists at least one row matching all specified column-value pairs.",
+    "params": [
+      { "name": "table", "type": "Table", "description": "Table to search", "required": true },
+      { "name": "column1", "type": "Column", "description": "Column to check", "required": true },
+      { "name": "value1", "type": "Scalar", "description": "Value to search for", "required": true }
+    ],
+    "returns": "Boolean",
+    "notes": ["Can check multiple column-value pairs simultaneously"],
+    "pitfalls": ["Does not support wildcards or partial matching"],
+    "examples": ["CONTAINS(Product, Product[Color], \"Red\", Product[Size], \"L\")"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/contains-function-dax"
+  },
+  {
+    "name": "EARLIER",
+    "category": "Other",
+    "signatures": ["EARLIER(<column>, <number>)"],
+    "description_short": "Returns the value of a column in an outer row context.",
+    "params": [
+      { "name": "column", "type": "Column", "description": "Column to reference from outer context", "required": true },
+      { "name": "number", "type": "Integer", "description": "Number of outer contexts to go back (default: 1)", "required": false }
+    ],
+    "returns": "Scalar",
+    "notes": ["Legacy function for accessing outer row contexts", "VAR is the modern preferred alternative"],
+    "pitfalls": ["Difficult to read and maintain", "Always prefer VAR for storing outer context values"],
+    "examples": ["EARLIER(Products[Price])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/earlier-function-dax"
+  },
+  {
+    "name": "CALENDAR",
+    "category": "Time Intelligence",
+    "signatures": ["CALENDAR(<startDate>, <endDate>)"],
+    "description_short": "Returns a table with a single Date column containing a contiguous set of dates.",
+    "params": [
+      { "name": "startDate", "type": "DateTime", "description": "Start date", "required": true },
+      { "name": "endDate", "type": "DateTime", "description": "End date", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Useful for creating date tables", "Dates are inclusive on both ends"],
+    "pitfalls": ["Only generates the Date column; add other columns with ADDCOLUMNS"],
+    "examples": ["CALENDAR(DATE(2020, 1, 1), DATE(2025, 12, 31))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/calendar-function-dax"
+  },
+  {
+    "name": "DATE",
+    "category": "Date/Time",
+    "signatures": ["DATE(<year>, <month>, <day>)"],
+    "description_short": "Returns the specified date as a datetime value.",
+    "params": [
+      { "name": "year", "type": "Integer", "description": "Year value", "required": true },
+      { "name": "month", "type": "Integer", "description": "Month value (1-12)", "required": true },
+      { "name": "day", "type": "Integer", "description": "Day value (1-31)", "required": true }
+    ],
+    "returns": "DateTime",
+    "notes": ["Handles overflow: DATE(2023, 13, 1) = Jan 1, 2024"],
+    "pitfalls": [],
+    "examples": ["DATE(2023, 6, 15)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/date-function-dax"
+  },
+  {
+    "name": "TODAY",
+    "category": "Date/Time",
+    "signatures": ["TODAY()"],
+    "description_short": "Returns the current date.",
+    "params": [],
+    "returns": "DateTime",
+    "notes": ["Returns date only (no time component)", "Value changes each day"],
+    "pitfalls": ["Not recommended for calculated columns as it recalculates on each refresh"],
+    "examples": ["DATEDIFF(Orders[OrderDate], TODAY(), DAY)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/today-function-dax"
+  },
+  {
+    "name": "YEAR",
+    "category": "Date/Time",
+    "signatures": ["YEAR(<date>)"],
+    "description_short": "Returns the year of a date as a four-digit number.",
+    "params": [
+      { "name": "date", "type": "DateTime", "description": "A date value", "required": true }
+    ],
+    "returns": "Integer",
+    "notes": [],
+    "pitfalls": [],
+    "examples": ["YEAR(TODAY())"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/year-function-dax"
+  },
+  {
+    "name": "MONTH",
+    "category": "Date/Time",
+    "signatures": ["MONTH(<date>)"],
+    "description_short": "Returns the month of a date as a number from 1 to 12.",
+    "params": [
+      { "name": "date", "type": "DateTime", "description": "A date value", "required": true }
+    ],
+    "returns": "Integer",
+    "notes": [],
+    "pitfalls": [],
+    "examples": ["MONTH(TODAY())"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/month-function-dax"
+  },
+  {
+    "name": "LEFT",
+    "category": "Text",
+    "signatures": ["LEFT(<text>, <num_chars>)"],
+    "description_short": "Returns the specified number of characters from the start of a text string.",
+    "params": [
+      { "name": "text", "type": "Text", "description": "The text string containing the characters to extract", "required": true },
+      { "name": "num_chars", "type": "Integer", "description": "The number of characters to extract", "required": true }
+    ],
+    "returns": "Text",
+    "notes": ["If num_chars exceeds the length of text, returns the entire string"],
+    "pitfalls": ["num_chars must be >= 0"],
+    "examples": ["LEFT(\"Hello\", 3)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/left-function-dax"
+  },
+  {
+    "name": "RIGHT",
+    "category": "Text",
+    "signatures": ["RIGHT(<text>, <num_chars>)"],
+    "description_short": "Returns the specified number of characters from the end of a text string.",
+    "params": [
+      { "name": "text", "type": "Text", "description": "The text string containing the characters to extract", "required": true },
+      { "name": "num_chars", "type": "Integer", "description": "The number of characters to extract", "required": true }
+    ],
+    "returns": "Text",
+    "notes": ["If num_chars exceeds the length of text, returns the entire string"],
+    "pitfalls": ["num_chars must be >= 0"],
+    "examples": ["RIGHT(\"Hello\", 3)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/right-function-dax"
+  },
+  {
+    "name": "MID",
+    "category": "Text",
+    "signatures": ["MID(<text>, <start_num>, <num_chars>)"],
+    "description_short": "Returns a string of characters from the middle of a text string.",
+    "params": [
+      { "name": "text", "type": "Text", "description": "The text string containing the characters to extract", "required": true },
+      { "name": "start_num", "type": "Integer", "description": "The position of the first character to extract (1-based)", "required": true },
+      { "name": "num_chars", "type": "Integer", "description": "The number of characters to extract", "required": true }
+    ],
+    "returns": "Text",
+    "notes": ["start_num is 1-based"],
+    "pitfalls": ["If start_num is greater than the length of text, returns empty string"],
+    "examples": ["MID(\"Hello World\", 7, 5)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/mid-function-dax"
+  },
+  {
+    "name": "LEN",
+    "category": "Text",
+    "signatures": ["LEN(<text>)"],
+    "description_short": "Returns the number of characters in a text string.",
+    "params": [
+      { "name": "text", "type": "Text", "description": "The text string to measure", "required": true }
+    ],
+    "returns": "Integer",
+    "notes": ["Counts all characters including spaces"],
+    "pitfalls": ["BLANK returns 0"],
+    "examples": ["LEN(\"Hello\")"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/len-function-dax"
+  },
+  {
+    "name": "UPPER",
+    "category": "Text",
+    "signatures": ["UPPER(<text>)"],
+    "description_short": "Converts a text string to all uppercase.",
+    "params": [
+      { "name": "text", "type": "Text", "description": "The text to convert to uppercase", "required": true }
+    ],
+    "returns": "Text",
+    "notes": ["Non-alphabetic characters are unchanged"],
+    "pitfalls": [],
+    "examples": ["UPPER(\"hello\")"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/upper-function-dax"
+  },
+  {
+    "name": "LOWER",
+    "category": "Text",
+    "signatures": ["LOWER(<text>)"],
+    "description_short": "Converts a text string to all lowercase.",
+    "params": [
+      { "name": "text", "type": "Text", "description": "The text to convert to lowercase", "required": true }
+    ],
+    "returns": "Text",
+    "notes": ["Non-alphabetic characters are unchanged"],
+    "pitfalls": [],
+    "examples": ["LOWER(\"HELLO\")"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/lower-function-dax"
+  },
+  {
+    "name": "TRIM",
+    "category": "Text",
+    "signatures": ["TRIM(<text>)"],
+    "description_short": "Removes all leading and trailing spaces from a text string.",
+    "params": [
+      { "name": "text", "type": "Text", "description": "The text from which to remove spaces", "required": true }
+    ],
+    "returns": "Text",
+    "notes": ["Also reduces internal multiple spaces to single spaces"],
+    "pitfalls": ["Does not remove non-breaking spaces; use SUBSTITUTE to handle those"],
+    "examples": ["TRIM(\"  Hello  World  \")"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/trim-function-dax"
+  },
+  {
+    "name": "SUBSTITUTE",
+    "category": "Text",
+    "signatures": ["SUBSTITUTE(<text>, <old_text>, <new_text>, <instance_num>)"],
+    "description_short": "Replaces occurrences of existing text with new text in a string.",
+    "params": [
+      { "name": "text", "type": "Text", "description": "The text in which to substitute", "required": true },
+      { "name": "old_text", "type": "Text", "description": "The existing text to replace", "required": true },
+      { "name": "new_text", "type": "Text", "description": "The replacement text", "required": true },
+      { "name": "instance_num", "type": "Integer", "description": "Which occurrence to replace (optional; if omitted, all occurrences are replaced)", "required": false }
+    ],
+    "returns": "Text",
+    "notes": ["Case-sensitive matching", "If instance_num is omitted, all occurrences are replaced"],
+    "pitfalls": ["Case-sensitive; 'A' and 'a' are treated differently"],
+    "examples": ["SUBSTITUTE(\"Hello World\", \"World\", \"DAX\")"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/substitute-function-dax"
+  },
+  {
+    "name": "FIND",
+    "category": "Text",
+    "signatures": ["FIND(<find_text>, <within_text>, <start_num>, <notFoundValue>)"],
+    "description_short": "Returns the starting position of one text string within another (case-sensitive).",
+    "params": [
+      { "name": "find_text", "type": "Text", "description": "The text to find", "required": true },
+      { "name": "within_text", "type": "Text", "description": "The text to search within", "required": true },
+      { "name": "start_num", "type": "Integer", "description": "Position to start searching from (optional, default 1)", "required": false },
+      { "name": "notFoundValue", "type": "Scalar", "description": "Value to return if text is not found (optional)", "required": false }
+    ],
+    "returns": "Integer",
+    "notes": ["Case-sensitive", "1-based position"],
+    "pitfalls": ["Returns an error if text is not found and notFoundValue is not specified"],
+    "examples": ["FIND(\"World\", \"Hello World\")"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/find-function-dax"
+  },
+  {
+    "name": "SEARCH",
+    "category": "Text",
+    "signatures": ["SEARCH(<find_text>, <within_text>, <start_num>, <notFoundValue>)"],
+    "description_short": "Returns the starting position of one text string within another (case-insensitive).",
+    "params": [
+      { "name": "find_text", "type": "Text", "description": "The text to find", "required": true },
+      { "name": "within_text", "type": "Text", "description": "The text to search within", "required": true },
+      { "name": "start_num", "type": "Integer", "description": "Position to start searching from (optional, default 1)", "required": false },
+      { "name": "notFoundValue", "type": "Scalar", "description": "Value to return if text is not found (optional)", "required": false }
+    ],
+    "returns": "Integer",
+    "notes": ["Case-insensitive", "Supports wildcards: ? for single character, * for any sequence"],
+    "pitfalls": ["Returns an error if text is not found and notFoundValue is not specified"],
+    "examples": ["SEARCH(\"world\", \"Hello World\")"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/search-function-dax"
+  },
+  {
+    "name": "CONCATENATE",
+    "category": "Text",
+    "signatures": ["CONCATENATE(<text1>, <text2>)"],
+    "description_short": "Joins two text strings into one.",
+    "params": [
+      { "name": "text1", "type": "Text", "description": "The first text string", "required": true },
+      { "name": "text2", "type": "Text", "description": "The second text string", "required": true }
+    ],
+    "returns": "Text",
+    "notes": ["Only accepts two arguments; use & operator or CONCATENATEX for multiple strings"],
+    "pitfalls": ["For joining more than two strings, use the & operator or CONCATENATEX"],
+    "examples": ["CONCATENATE(\"Hello\", \" World\")"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/concatenate-function-dax"
+  },
+  {
+    "name": "REPT",
+    "category": "Text",
+    "signatures": ["REPT(<text>, <number_times>)"],
+    "description_short": "Repeats text a given number of times.",
+    "params": [
+      { "name": "text", "type": "Text", "description": "The text to repeat", "required": true },
+      { "name": "number_times", "type": "Integer", "description": "The number of times to repeat the text", "required": true }
+    ],
+    "returns": "Text",
+    "notes": ["If number_times is 0, returns empty string"],
+    "pitfalls": ["Result is limited to 32767 characters"],
+    "examples": ["REPT(\"*\", 5)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/rept-function-dax"
+  },
+  {
+    "name": "FIXED",
+    "category": "Text",
+    "signatures": ["FIXED(<number>, <decimals>, <no_commas>)"],
+    "description_short": "Rounds a number to the specified number of decimals and returns the result as text.",
+    "params": [
+      { "name": "number", "type": "Decimal", "description": "The number to round and convert", "required": true },
+      { "name": "decimals", "type": "Integer", "description": "Number of decimal places (optional, default 2)", "required": false },
+      { "name": "no_commas", "type": "Boolean", "description": "If TRUE, do not include commas (optional, default FALSE)", "required": false }
+    ],
+    "returns": "Text",
+    "notes": ["Returns text, not a number"],
+    "pitfalls": ["Result is text and cannot be used directly in arithmetic"],
+    "examples": ["FIXED(1234.567, 2, FALSE)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/fixed-function-dax"
+  },
+  {
+    "name": "EXACT",
+    "category": "Text",
+    "signatures": ["EXACT(<text1>, <text2>)"],
+    "description_short": "Compares two text strings and returns TRUE if they are exactly the same (case-sensitive).",
+    "params": [
+      { "name": "text1", "type": "Text", "description": "The first text string", "required": true },
+      { "name": "text2", "type": "Text", "description": "The second text string", "required": true }
+    ],
+    "returns": "Boolean",
+    "notes": ["Case-sensitive comparison", "Numbers are compared as text"],
+    "pitfalls": ["Unlike =, EXACT is case-sensitive"],
+    "examples": ["EXACT(\"Hello\", \"hello\")"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/exact-function-dax"
+  },
+  {
+    "name": "SQRT",
+    "category": "Math",
+    "signatures": ["SQRT(<number>)"],
+    "description_short": "Returns the square root of a number.",
+    "params": [
+      { "name": "number", "type": "Decimal", "description": "The number to get the square root of", "required": true }
+    ],
+    "returns": "Decimal",
+    "notes": ["Number must be non-negative"],
+    "pitfalls": ["Returns error for negative numbers"],
+    "examples": ["SQRT(25)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/sqrt-function-dax"
+  },
+  {
+    "name": "POWER",
+    "category": "Math",
+    "signatures": ["POWER(<number>, <power>)"],
+    "description_short": "Returns the result of a number raised to a power.",
+    "params": [
+      { "name": "number", "type": "Decimal", "description": "The base number", "required": true },
+      { "name": "power", "type": "Decimal", "description": "The exponent", "required": true }
+    ],
+    "returns": "Decimal",
+    "notes": ["Equivalent to the ^ operator"],
+    "pitfalls": ["POWER(0, 0) returns 1"],
+    "examples": ["POWER(2, 10)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/power-function-dax"
+  },
+  {
+    "name": "LOG",
+    "category": "Math",
+    "signatures": ["LOG(<number>, <base>)"],
+    "description_short": "Returns the logarithm of a number to the specified base.",
+    "params": [
+      { "name": "number", "type": "Decimal", "description": "The positive number for which to calculate the logarithm", "required": true },
+      { "name": "base", "type": "Decimal", "description": "The base of the logarithm (optional, default 10)", "required": false }
+    ],
+    "returns": "Decimal",
+    "notes": ["Default base is 10 if not specified"],
+    "pitfalls": ["Number must be positive"],
+    "examples": ["LOG(100, 10)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/log-function-dax"
+  },
+  {
+    "name": "LOG10",
+    "category": "Math",
+    "signatures": ["LOG10(<number>)"],
+    "description_short": "Returns the base-10 logarithm of a number.",
+    "params": [
+      { "name": "number", "type": "Decimal", "description": "The positive number for which to calculate the base-10 logarithm", "required": true }
+    ],
+    "returns": "Decimal",
+    "notes": ["Equivalent to LOG(number, 10)"],
+    "pitfalls": ["Number must be positive"],
+    "examples": ["LOG10(1000)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/log10-function-dax"
+  },
+  {
+    "name": "MOD",
+    "category": "Math",
+    "signatures": ["MOD(<number>, <divisor>)"],
+    "description_short": "Returns the remainder after a number is divided by a divisor.",
+    "params": [
+      { "name": "number", "type": "Decimal", "description": "The number to divide", "required": true },
+      { "name": "divisor", "type": "Decimal", "description": "The number to divide by", "required": true }
+    ],
+    "returns": "Decimal",
+    "notes": ["Result has the same sign as the divisor"],
+    "pitfalls": ["Divisor cannot be 0"],
+    "examples": ["MOD(10, 3)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/mod-function-dax"
+  },
+  {
+    "name": "CEILING",
+    "category": "Math",
+    "signatures": ["CEILING(<number>, <significance>)"],
+    "description_short": "Rounds a number up to the nearest multiple of significance.",
+    "params": [
+      { "name": "number", "type": "Decimal", "description": "The number to round up", "required": true },
+      { "name": "significance", "type": "Decimal", "description": "The multiple to which to round", "required": true }
+    ],
+    "returns": "Decimal",
+    "notes": ["Rounds away from zero for positive numbers"],
+    "pitfalls": ["Number and significance must have the same sign"],
+    "examples": ["CEILING(4.3, 1)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/ceiling-function-dax"
+  },
+  {
+    "name": "FLOOR",
+    "category": "Math",
+    "signatures": ["FLOOR(<number>, <significance>)"],
+    "description_short": "Rounds a number down to the nearest multiple of significance.",
+    "params": [
+      { "name": "number", "type": "Decimal", "description": "The number to round down", "required": true },
+      { "name": "significance", "type": "Decimal", "description": "The multiple to which to round", "required": true }
+    ],
+    "returns": "Decimal",
+    "notes": ["Rounds toward zero for positive numbers"],
+    "pitfalls": ["Number and significance must have the same sign"],
+    "examples": ["FLOOR(4.7, 1)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/floor-function-dax"
+  },
+  {
+    "name": "EVEN",
+    "category": "Math",
+    "signatures": ["EVEN(<number>)"],
+    "description_short": "Returns a number rounded up to the nearest even integer.",
+    "params": [
+      { "name": "number", "type": "Decimal", "description": "The number to round up", "required": true }
+    ],
+    "returns": "Integer",
+    "notes": ["Rounds away from zero"],
+    "pitfalls": ["Negative numbers round away from zero: EVEN(-3) = -4"],
+    "examples": ["EVEN(3)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/even-function-dax"
+  },
+  {
+    "name": "ODD",
+    "category": "Math",
+    "signatures": ["ODD(<number>)"],
+    "description_short": "Returns a number rounded up to the nearest odd integer.",
+    "params": [
+      { "name": "number", "type": "Decimal", "description": "The number to round up", "required": true }
+    ],
+    "returns": "Integer",
+    "notes": ["Rounds away from zero"],
+    "pitfalls": ["Negative numbers round away from zero: ODD(-2) = -3"],
+    "examples": ["ODD(4)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/odd-function-dax"
+  },
+  {
+    "name": "RAND",
+    "category": "Math",
+    "signatures": ["RAND()"],
+    "description_short": "Returns a random number greater than or equal to 0 and less than 1.",
+    "params": [],
+    "returns": "Decimal",
+    "notes": ["Returns a new random number each time the model is recalculated"],
+    "pitfalls": ["Not suitable for cryptographic purposes", "Recalculates on every refresh"],
+    "examples": ["RAND()"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/rand-function-dax"
+  },
+  {
+    "name": "SIGN",
+    "category": "Math",
+    "signatures": ["SIGN(<number>)"],
+    "description_short": "Returns the sign of a number: 1 for positive, 0 for zero, -1 for negative.",
+    "params": [
+      { "name": "number", "type": "Decimal", "description": "The number to determine the sign of", "required": true }
+    ],
+    "returns": "Integer",
+    "notes": ["Returns -1, 0, or 1"],
+    "pitfalls": [],
+    "examples": ["SIGN(-5)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/sign-function-dax"
+  },
+  {
+    "name": "TRUNC",
+    "category": "Math",
+    "signatures": ["TRUNC(<number>, <num_digits>)"],
+    "description_short": "Truncates a number to an integer by removing the fractional part, or to specified decimal places.",
+    "params": [
+      { "name": "number", "type": "Decimal", "description": "The number to truncate", "required": true },
+      { "name": "num_digits", "type": "Integer", "description": "Number of decimal places to keep (optional, default 0)", "required": false }
+    ],
+    "returns": "Decimal",
+    "notes": ["Unlike ROUND, TRUNC simply removes digits without rounding"],
+    "pitfalls": ["TRUNC(-3.7) returns -3, not -4 (unlike INT which returns -4)"],
+    "examples": ["TRUNC(3.14159, 2)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/trunc-function-dax"
+  },
+  {
+    "name": "PI",
+    "category": "Math",
+    "signatures": ["PI()"],
+    "description_short": "Returns the value of pi, 3.14159265358979.",
+    "params": [],
+    "returns": "Decimal",
+    "notes": ["Returns the mathematical constant pi with 15-digit precision"],
+    "pitfalls": [],
+    "examples": ["PI()"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/pi-function-dax"
+  },
+  {
+    "name": "NOW",
+    "category": "Date/Time",
+    "signatures": ["NOW()"],
+    "description_short": "Returns the current date and time.",
+    "params": [],
+    "returns": "DateTime",
+    "notes": ["Includes both date and time components", "Value changes each time the model is refreshed"],
+    "pitfalls": ["Not recommended for calculated columns as it recalculates on each refresh"],
+    "examples": ["NOW()"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/now-function-dax"
+  },
+  {
+    "name": "DATEDIFF",
+    "category": "Date/Time",
+    "signatures": ["DATEDIFF(<start_date>, <end_date>, <interval>)"],
+    "description_short": "Returns the difference between two dates in the specified interval.",
+    "params": [
+      { "name": "start_date", "type": "DateTime", "description": "The start date", "required": true },
+      { "name": "end_date", "type": "DateTime", "description": "The end date", "required": true },
+      { "name": "interval", "type": "Enum", "description": "The unit of interval: SECOND, MINUTE, HOUR, DAY, WEEK, MONTH, QUARTER, or YEAR", "required": true }
+    ],
+    "returns": "Integer",
+    "notes": ["Returns a negative value if start_date is after end_date"],
+    "pitfalls": ["MONTH and YEAR intervals use calendar boundaries, not fixed durations"],
+    "examples": ["DATEDIFF(Orders[OrderDate], Orders[ShipDate], DAY)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/datediff-function-dax"
+  },
+  {
+    "name": "EOMONTH",
+    "category": "Date/Time",
+    "signatures": ["EOMONTH(<start_date>, <months>)"],
+    "description_short": "Returns the date of the last day of the month, N months before or after the start date.",
+    "params": [
+      { "name": "start_date", "type": "DateTime", "description": "The start date", "required": true },
+      { "name": "months", "type": "Integer", "description": "Number of months before (negative) or after (positive) start_date", "required": true }
+    ],
+    "returns": "DateTime",
+    "notes": ["Useful for calculating month-end dates", "months = 0 returns the end of the current month"],
+    "pitfalls": ["Returns the last day of the month, not the same day in another month"],
+    "examples": ["EOMONTH(TODAY(), 0)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/eomonth-function-dax"
+  },
+  {
+    "name": "DAY",
+    "category": "Date/Time",
+    "signatures": ["DAY(<date>)"],
+    "description_short": "Returns the day of the month as a number from 1 to 31.",
+    "params": [
+      { "name": "date", "type": "DateTime", "description": "A date value", "required": true }
+    ],
+    "returns": "Integer",
+    "notes": [],
+    "pitfalls": [],
+    "examples": ["DAY(DATE(2023, 6, 15))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/day-function-dax"
+  },
+  {
+    "name": "HOUR",
+    "category": "Date/Time",
+    "signatures": ["HOUR(<datetime>)"],
+    "description_short": "Returns the hour as a number from 0 to 23.",
+    "params": [
+      { "name": "datetime", "type": "DateTime", "description": "A datetime value", "required": true }
+    ],
+    "returns": "Integer",
+    "notes": ["Returns 0-23 (24-hour format)"],
+    "pitfalls": [],
+    "examples": ["HOUR(NOW())"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/hour-function-dax"
+  },
+  {
+    "name": "MINUTE",
+    "category": "Date/Time",
+    "signatures": ["MINUTE(<datetime>)"],
+    "description_short": "Returns the minute as a number from 0 to 59.",
+    "params": [
+      { "name": "datetime", "type": "DateTime", "description": "A datetime value", "required": true }
+    ],
+    "returns": "Integer",
+    "notes": [],
+    "pitfalls": [],
+    "examples": ["MINUTE(NOW())"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/minute-function-dax"
+  },
+  {
+    "name": "SECOND",
+    "category": "Date/Time",
+    "signatures": ["SECOND(<datetime>)"],
+    "description_short": "Returns the second as a number from 0 to 59.",
+    "params": [
+      { "name": "datetime", "type": "DateTime", "description": "A datetime value", "required": true }
+    ],
+    "returns": "Integer",
+    "notes": [],
+    "pitfalls": [],
+    "examples": ["SECOND(NOW())"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/second-function-dax"
+  },
+  {
+    "name": "WEEKDAY",
+    "category": "Date/Time",
+    "signatures": ["WEEKDAY(<date>, <return_type>)"],
+    "description_short": "Returns a number identifying the day of the week of a date.",
+    "params": [
+      { "name": "date", "type": "DateTime", "description": "A date value", "required": true },
+      { "name": "return_type", "type": "Integer", "description": "Determines the return value mapping (optional, default 1: Sunday=1 to Saturday=7)", "required": false }
+    ],
+    "returns": "Integer",
+    "notes": ["return_type 1: Sunday=1..Saturday=7", "return_type 2: Monday=1..Sunday=7"],
+    "pitfalls": ["Different return_type values produce different numbering schemes"],
+    "examples": ["WEEKDAY(TODAY())"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/weekday-function-dax"
+  },
+  {
+    "name": "WEEKNUM",
+    "category": "Date/Time",
+    "signatures": ["WEEKNUM(<date>, <return_type>)"],
+    "description_short": "Returns the week number of the year for a given date.",
+    "params": [
+      { "name": "date", "type": "DateTime", "description": "A date value", "required": true },
+      { "name": "return_type", "type": "Integer", "description": "Determines which day is the start of the week (optional, default 1: Sunday)", "required": false }
+    ],
+    "returns": "Integer",
+    "notes": ["return_type 1: week begins on Sunday", "return_type 2: week begins on Monday"],
+    "pitfalls": ["Week numbering may differ from ISO week numbers"],
+    "examples": ["WEEKNUM(TODAY())"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/weeknum-function-dax"
+  },
+  {
+    "name": "QUARTER",
+    "category": "Date/Time",
+    "signatures": ["QUARTER(<date>)"],
+    "description_short": "Returns the quarter of the year as a number from 1 to 4.",
+    "params": [
+      { "name": "date", "type": "DateTime", "description": "A date value", "required": true }
+    ],
+    "returns": "Integer",
+    "notes": ["Q1=Jan-Mar, Q2=Apr-Jun, Q3=Jul-Sep, Q4=Oct-Dec"],
+    "pitfalls": [],
+    "examples": ["QUARTER(TODAY())"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/quarter-function-dax"
+  },
+  {
+    "name": "STARTOFYEAR",
+    "category": "Date/Time",
+    "signatures": ["STARTOFYEAR(<dates>, <year_end_date>)"],
+    "description_short": "Returns the first date of the year in the current filter context.",
+    "params": [
+      { "name": "dates", "type": "Column", "description": "A date column", "required": true },
+      { "name": "year_end_date", "type": "String", "description": "Optional year end date for fiscal year (e.g., \"06-30\")", "required": false }
+    ],
+    "returns": "DateTime",
+    "notes": ["Returns a single-row, single-column table that can be used as a scalar"],
+    "pitfalls": ["Requires a marked date table"],
+    "examples": ["STARTOFYEAR(Date[Date])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/startofyear-function-dax"
+  },
+  {
+    "name": "STARTOFMONTH",
+    "category": "Date/Time",
+    "signatures": ["STARTOFMONTH(<dates>)"],
+    "description_short": "Returns the first date of the month in the current filter context.",
+    "params": [
+      { "name": "dates", "type": "Column", "description": "A date column", "required": true }
+    ],
+    "returns": "DateTime",
+    "notes": ["Returns a single-row, single-column table that can be used as a scalar"],
+    "pitfalls": ["Requires a marked date table"],
+    "examples": ["STARTOFMONTH(Date[Date])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/startofmonth-function-dax"
+  },
+  {
+    "name": "STARTOFQUARTER",
+    "category": "Date/Time",
+    "signatures": ["STARTOFQUARTER(<dates>)"],
+    "description_short": "Returns the first date of the quarter in the current filter context.",
+    "params": [
+      { "name": "dates", "type": "Column", "description": "A date column", "required": true }
+    ],
+    "returns": "DateTime",
+    "notes": ["Returns a single-row, single-column table that can be used as a scalar"],
+    "pitfalls": ["Requires a marked date table"],
+    "examples": ["STARTOFQUARTER(Date[Date])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/startofquarter-function-dax"
+  },
+  {
+    "name": "ENDOFYEAR",
+    "category": "Date/Time",
+    "signatures": ["ENDOFYEAR(<dates>, <year_end_date>)"],
+    "description_short": "Returns the last date of the year in the current filter context.",
+    "params": [
+      { "name": "dates", "type": "Column", "description": "A date column", "required": true },
+      { "name": "year_end_date", "type": "String", "description": "Optional year end date for fiscal year (e.g., \"06-30\")", "required": false }
+    ],
+    "returns": "DateTime",
+    "notes": ["Returns a single-row, single-column table that can be used as a scalar"],
+    "pitfalls": ["Requires a marked date table"],
+    "examples": ["ENDOFYEAR(Date[Date])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/endofyear-function-dax"
+  },
+  {
+    "name": "ENDOFMONTH",
+    "category": "Date/Time",
+    "signatures": ["ENDOFMONTH(<dates>)"],
+    "description_short": "Returns the last date of the month in the current filter context.",
+    "params": [
+      { "name": "dates", "type": "Column", "description": "A date column", "required": true }
+    ],
+    "returns": "DateTime",
+    "notes": ["Returns a single-row, single-column table that can be used as a scalar"],
+    "pitfalls": ["Requires a marked date table"],
+    "examples": ["ENDOFMONTH(Date[Date])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/endofmonth-function-dax"
+  },
+  {
+    "name": "ENDOFQUARTER",
+    "category": "Date/Time",
+    "signatures": ["ENDOFQUARTER(<dates>)"],
+    "description_short": "Returns the last date of the quarter in the current filter context.",
+    "params": [
+      { "name": "dates", "type": "Column", "description": "A date column", "required": true }
+    ],
+    "returns": "DateTime",
+    "notes": ["Returns a single-row, single-column table that can be used as a scalar"],
+    "pitfalls": ["Requires a marked date table"],
+    "examples": ["ENDOFQUARTER(Date[Date])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/endofquarter-function-dax"
+  },
+  {
+    "name": "PARALLELPERIOD",
+    "category": "Time Intelligence",
+    "signatures": ["PARALLELPERIOD(<dates>, <number_of_intervals>, <interval>)"],
+    "description_short": "Returns a table of dates representing a period parallel to the current dates, shifted by the specified intervals.",
+    "params": [
+      { "name": "dates", "type": "Column", "description": "A date column", "required": true },
+      { "name": "number_of_intervals", "type": "Integer", "description": "Number of intervals to shift (negative for past)", "required": true },
+      { "name": "interval", "type": "Enum", "description": "MONTH, QUARTER, or YEAR", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Returns a full period (e.g., full month or year) unlike DATEADD which preserves the original date range"],
+    "pitfalls": ["Requires a marked date table", "Returns full periods, not partial ones"],
+    "examples": ["CALCULATE([Sales], PARALLELPERIOD(Date[Date], -1, YEAR))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/parallelperiod-function-dax"
+  },
+  {
+    "name": "PREVIOUSYEAR",
+    "category": "Time Intelligence",
+    "signatures": ["PREVIOUSYEAR(<dates>, <year_end_date>)"],
+    "description_short": "Returns a table of all dates in the previous year from the current filter context.",
+    "params": [
+      { "name": "dates", "type": "Column", "description": "A date column", "required": true },
+      { "name": "year_end_date", "type": "String", "description": "Optional fiscal year end date", "required": false }
+    ],
+    "returns": "Table",
+    "notes": ["Returns all dates in the previous year"],
+    "pitfalls": ["Requires a marked date table"],
+    "examples": ["CALCULATE([Sales], PREVIOUSYEAR(Date[Date]))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/previousyear-function-dax"
+  },
+  {
+    "name": "PREVIOUSMONTH",
+    "category": "Time Intelligence",
+    "signatures": ["PREVIOUSMONTH(<dates>)"],
+    "description_short": "Returns a table of all dates in the previous month from the current filter context.",
+    "params": [
+      { "name": "dates", "type": "Column", "description": "A date column", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Returns all dates in the previous month"],
+    "pitfalls": ["Requires a marked date table"],
+    "examples": ["CALCULATE([Sales], PREVIOUSMONTH(Date[Date]))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/previousmonth-function-dax"
+  },
+  {
+    "name": "PREVIOUSQUARTER",
+    "category": "Time Intelligence",
+    "signatures": ["PREVIOUSQUARTER(<dates>)"],
+    "description_short": "Returns a table of all dates in the previous quarter from the current filter context.",
+    "params": [
+      { "name": "dates", "type": "Column", "description": "A date column", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Returns all dates in the previous quarter"],
+    "pitfalls": ["Requires a marked date table"],
+    "examples": ["CALCULATE([Sales], PREVIOUSQUARTER(Date[Date]))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/previousquarter-function-dax"
+  },
+  {
+    "name": "PREVIOUSDAY",
+    "category": "Time Intelligence",
+    "signatures": ["PREVIOUSDAY(<dates>)"],
+    "description_short": "Returns a table containing the date of the previous day from the current filter context.",
+    "params": [
+      { "name": "dates", "type": "Column", "description": "A date column", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Returns a single-date table"],
+    "pitfalls": ["Requires a marked date table"],
+    "examples": ["CALCULATE([Sales], PREVIOUSDAY(Date[Date]))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/previousday-function-dax"
+  },
+  {
+    "name": "NEXTYEAR",
+    "category": "Time Intelligence",
+    "signatures": ["NEXTYEAR(<dates>, <year_end_date>)"],
+    "description_short": "Returns a table of all dates in the next year from the current filter context.",
+    "params": [
+      { "name": "dates", "type": "Column", "description": "A date column", "required": true },
+      { "name": "year_end_date", "type": "String", "description": "Optional fiscal year end date", "required": false }
+    ],
+    "returns": "Table",
+    "notes": ["Returns all dates in the next year"],
+    "pitfalls": ["Requires a marked date table"],
+    "examples": ["CALCULATE([Sales], NEXTYEAR(Date[Date]))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/nextyear-function-dax"
+  },
+  {
+    "name": "NEXTMONTH",
+    "category": "Time Intelligence",
+    "signatures": ["NEXTMONTH(<dates>)"],
+    "description_short": "Returns a table of all dates in the next month from the current filter context.",
+    "params": [
+      { "name": "dates", "type": "Column", "description": "A date column", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Returns all dates in the next month"],
+    "pitfalls": ["Requires a marked date table"],
+    "examples": ["CALCULATE([Sales], NEXTMONTH(Date[Date]))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/nextmonth-function-dax"
+  },
+  {
+    "name": "NEXTQUARTER",
+    "category": "Time Intelligence",
+    "signatures": ["NEXTQUARTER(<dates>)"],
+    "description_short": "Returns a table of all dates in the next quarter from the current filter context.",
+    "params": [
+      { "name": "dates", "type": "Column", "description": "A date column", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Returns all dates in the next quarter"],
+    "pitfalls": ["Requires a marked date table"],
+    "examples": ["CALCULATE([Sales], NEXTQUARTER(Date[Date]))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/nextquarter-function-dax"
+  },
+  {
+    "name": "NEXTDAY",
+    "category": "Time Intelligence",
+    "signatures": ["NEXTDAY(<dates>)"],
+    "description_short": "Returns a table containing the date of the next day from the current filter context.",
+    "params": [
+      { "name": "dates", "type": "Column", "description": "A date column", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Returns a single-date table"],
+    "pitfalls": ["Requires a marked date table"],
+    "examples": ["CALCULATE([Sales], NEXTDAY(Date[Date]))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/nextday-function-dax"
+  },
+  {
+    "name": "DATESBETWEEN",
+    "category": "Time Intelligence",
+    "signatures": ["DATESBETWEEN(<dates>, <start_date>, <end_date>)"],
+    "description_short": "Returns a table of dates between the specified start and end dates.",
+    "params": [
+      { "name": "dates", "type": "Column", "description": "A date column", "required": true },
+      { "name": "start_date", "type": "DateTime", "description": "The start date (inclusive)", "required": true },
+      { "name": "end_date", "type": "DateTime", "description": "The end date (inclusive)", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Both start and end dates are inclusive", "Use BLANK() for open-ended ranges"],
+    "pitfalls": ["Requires a marked date table"],
+    "examples": ["CALCULATE([Sales], DATESBETWEEN(Date[Date], DATE(2023,1,1), DATE(2023,12,31)))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/datesbetween-function-dax"
+  },
+  {
+    "name": "DATESINPERIOD",
+    "category": "Time Intelligence",
+    "signatures": ["DATESINPERIOD(<dates>, <start_date>, <number_of_intervals>, <interval>)"],
+    "description_short": "Returns a table of dates starting from the start date for the specified number of intervals.",
+    "params": [
+      { "name": "dates", "type": "Column", "description": "A date column", "required": true },
+      { "name": "start_date", "type": "DateTime", "description": "The start date", "required": true },
+      { "name": "number_of_intervals", "type": "Integer", "description": "Number of intervals (negative for going backward)", "required": true },
+      { "name": "interval", "type": "Enum", "description": "DAY, MONTH, QUARTER, or YEAR", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Negative intervals go backward from the start date", "Useful for rolling period calculations"],
+    "pitfalls": ["Requires a marked date table"],
+    "examples": ["CALCULATE([Sales], DATESINPERIOD(Date[Date], MAX(Date[Date]), -12, MONTH))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/datesinperiod-function-dax"
+  },
+  {
+    "name": "TOTALMTD",
+    "category": "Time Intelligence",
+    "signatures": ["TOTALMTD(<expression>, <dates>, <filter>)"],
+    "description_short": "Evaluates an expression for the month-to-date in the current context.",
+    "params": [
+      { "name": "expression", "type": "Scalar", "description": "Expression to evaluate", "required": true },
+      { "name": "dates", "type": "Column", "description": "A date column", "required": true },
+      { "name": "filter", "type": "Boolean", "description": "Optional additional filter", "required": false }
+    ],
+    "returns": "Scalar",
+    "notes": ["Shorthand for CALCULATE(<expression>, DATESMTD(<dates>))"],
+    "pitfalls": ["Less flexible than explicit CALCULATE + DATESMTD"],
+    "examples": ["TOTALMTD([Sales], Date[Date])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/totalmtd-function-dax"
+  },
+  {
+    "name": "TOTALQTD",
+    "category": "Time Intelligence",
+    "signatures": ["TOTALQTD(<expression>, <dates>, <filter>)"],
+    "description_short": "Evaluates an expression for the quarter-to-date in the current context.",
+    "params": [
+      { "name": "expression", "type": "Scalar", "description": "Expression to evaluate", "required": true },
+      { "name": "dates", "type": "Column", "description": "A date column", "required": true },
+      { "name": "filter", "type": "Boolean", "description": "Optional additional filter", "required": false }
+    ],
+    "returns": "Scalar",
+    "notes": ["Shorthand for CALCULATE(<expression>, DATESQTD(<dates>))"],
+    "pitfalls": ["Less flexible than explicit CALCULATE + DATESQTD"],
+    "examples": ["TOTALQTD([Sales], Date[Date])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/totalqtd-function-dax"
+  },
+  {
+    "name": "OPENINGBALANCEYEAR",
+    "category": "Time Intelligence",
+    "signatures": ["OPENINGBALANCEYEAR(<expression>, <dates>, <filter>, <year_end_date>)"],
+    "description_short": "Evaluates an expression at the last date before the start of the year in the current context.",
+    "params": [
+      { "name": "expression", "type": "Scalar", "description": "Expression to evaluate", "required": true },
+      { "name": "dates", "type": "Column", "description": "A date column", "required": true },
+      { "name": "filter", "type": "Boolean", "description": "Optional additional filter", "required": false },
+      { "name": "year_end_date", "type": "String", "description": "Optional fiscal year end date", "required": false }
+    ],
+    "returns": "Scalar",
+    "notes": ["Returns the value at the opening of the year (last day of previous year)"],
+    "pitfalls": ["Requires a marked date table"],
+    "examples": ["OPENINGBALANCEYEAR([Inventory Value], Date[Date])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/openingbalanceyear-function-dax"
+  },
+  {
+    "name": "OPENINGBALANCEMONTH",
+    "category": "Time Intelligence",
+    "signatures": ["OPENINGBALANCEMONTH(<expression>, <dates>, <filter>)"],
+    "description_short": "Evaluates an expression at the last date before the start of the month in the current context.",
+    "params": [
+      { "name": "expression", "type": "Scalar", "description": "Expression to evaluate", "required": true },
+      { "name": "dates", "type": "Column", "description": "A date column", "required": true },
+      { "name": "filter", "type": "Boolean", "description": "Optional additional filter", "required": false }
+    ],
+    "returns": "Scalar",
+    "notes": ["Returns the value at the opening of the month (last day of previous month)"],
+    "pitfalls": ["Requires a marked date table"],
+    "examples": ["OPENINGBALANCEMONTH([Inventory Value], Date[Date])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/openingbalancemonth-function-dax"
+  },
+  {
+    "name": "OPENINGBALANCEQUARTER",
+    "category": "Time Intelligence",
+    "signatures": ["OPENINGBALANCEQUARTER(<expression>, <dates>, <filter>)"],
+    "description_short": "Evaluates an expression at the last date before the start of the quarter in the current context.",
+    "params": [
+      { "name": "expression", "type": "Scalar", "description": "Expression to evaluate", "required": true },
+      { "name": "dates", "type": "Column", "description": "A date column", "required": true },
+      { "name": "filter", "type": "Boolean", "description": "Optional additional filter", "required": false }
+    ],
+    "returns": "Scalar",
+    "notes": ["Returns the value at the opening of the quarter (last day of previous quarter)"],
+    "pitfalls": ["Requires a marked date table"],
+    "examples": ["OPENINGBALANCEQUARTER([Inventory Value], Date[Date])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/openingbalancequarter-function-dax"
+  },
+  {
+    "name": "CLOSINGBALANCEYEAR",
+    "category": "Time Intelligence",
+    "signatures": ["CLOSINGBALANCEYEAR(<expression>, <dates>, <filter>, <year_end_date>)"],
+    "description_short": "Evaluates an expression at the last date of the year in the current context.",
+    "params": [
+      { "name": "expression", "type": "Scalar", "description": "Expression to evaluate", "required": true },
+      { "name": "dates", "type": "Column", "description": "A date column", "required": true },
+      { "name": "filter", "type": "Boolean", "description": "Optional additional filter", "required": false },
+      { "name": "year_end_date", "type": "String", "description": "Optional fiscal year end date", "required": false }
+    ],
+    "returns": "Scalar",
+    "notes": ["Returns the value at the closing of the year (last day of the year)"],
+    "pitfalls": ["Requires a marked date table"],
+    "examples": ["CLOSINGBALANCEYEAR([Inventory Value], Date[Date])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/closingbalanceyear-function-dax"
+  },
+  {
+    "name": "CLOSINGBALANCEMONTH",
+    "category": "Time Intelligence",
+    "signatures": ["CLOSINGBALANCEMONTH(<expression>, <dates>, <filter>)"],
+    "description_short": "Evaluates an expression at the last date of the month in the current context.",
+    "params": [
+      { "name": "expression", "type": "Scalar", "description": "Expression to evaluate", "required": true },
+      { "name": "dates", "type": "Column", "description": "A date column", "required": true },
+      { "name": "filter", "type": "Boolean", "description": "Optional additional filter", "required": false }
+    ],
+    "returns": "Scalar",
+    "notes": ["Returns the value at the closing of the month (last day of the month)"],
+    "pitfalls": ["Requires a marked date table"],
+    "examples": ["CLOSINGBALANCEMONTH([Inventory Value], Date[Date])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/closingbalancemonth-function-dax"
+  },
+  {
+    "name": "CLOSINGBALANCEQUARTER",
+    "category": "Time Intelligence",
+    "signatures": ["CLOSINGBALANCEQUARTER(<expression>, <dates>, <filter>)"],
+    "description_short": "Evaluates an expression at the last date of the quarter in the current context.",
+    "params": [
+      { "name": "expression", "type": "Scalar", "description": "Expression to evaluate", "required": true },
+      { "name": "dates", "type": "Column", "description": "A date column", "required": true },
+      { "name": "filter", "type": "Boolean", "description": "Optional additional filter", "required": false }
+    ],
+    "returns": "Scalar",
+    "notes": ["Returns the value at the closing of the quarter (last day of the quarter)"],
+    "pitfalls": ["Requires a marked date table"],
+    "examples": ["CLOSINGBALANCEQUARTER([Inventory Value], Date[Date])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/closingbalancequarter-function-dax"
+  },
+  {
+    "name": "FIRSTDATE",
+    "category": "Time Intelligence",
+    "signatures": ["FIRSTDATE(<dates>)"],
+    "description_short": "Returns the first date in the current filter context.",
+    "params": [
+      { "name": "dates", "type": "Column", "description": "A date column", "required": true }
+    ],
+    "returns": "DateTime",
+    "notes": ["Returns a single-row, single-column table", "Respects the current filter context"],
+    "pitfalls": ["Returns a table, not a scalar; use in CALCULATE or wrap with scalar extraction"],
+    "examples": ["FIRSTDATE(Date[Date])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/firstdate-function-dax"
+  },
+  {
+    "name": "LASTDATE",
+    "category": "Time Intelligence",
+    "signatures": ["LASTDATE(<dates>)"],
+    "description_short": "Returns the last date in the current filter context.",
+    "params": [
+      { "name": "dates", "type": "Column", "description": "A date column", "required": true }
+    ],
+    "returns": "DateTime",
+    "notes": ["Returns a single-row, single-column table", "Respects the current filter context"],
+    "pitfalls": ["Returns a table, not a scalar; use in CALCULATE or wrap with scalar extraction"],
+    "examples": ["LASTDATE(Date[Date])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/lastdate-function-dax"
+  },
+  {
+    "name": "MEDIAN",
+    "category": "Statistical",
+    "signatures": ["MEDIAN(<column>)"],
+    "description_short": "Returns the median value of a column.",
+    "params": [
+      { "name": "column", "type": "Column", "description": "A column containing numeric values", "required": true }
+    ],
+    "returns": "Decimal",
+    "notes": ["For an even number of values, returns the average of the two middle values"],
+    "pitfalls": ["Ignores blank values"],
+    "examples": ["MEDIAN(Sales[Amount])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/median-function-dax"
+  },
+  {
+    "name": "MEDIANX",
+    "category": "Statistical",
+    "signatures": ["MEDIANX(<table>, <expression>)"],
+    "description_short": "Returns the median of an expression evaluated for each row in a table.",
+    "params": [
+      { "name": "table", "type": "Table", "description": "The table over which to iterate", "required": true },
+      { "name": "expression", "type": "Scalar", "description": "Expression evaluated for each row", "required": true }
+    ],
+    "returns": "Decimal",
+    "notes": ["Iterator function; evaluates expression row by row"],
+    "pitfalls": ["Blank expression results are excluded"],
+    "examples": ["MEDIANX(Sales, Sales[Quantity] * Sales[UnitPrice])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/medianx-function-dax"
+  },
+  {
+    "name": "STDEV.S",
+    "category": "Statistical",
+    "signatures": ["STDEV.S(<column>)"],
+    "description_short": "Returns the sample standard deviation of a column.",
+    "params": [
+      { "name": "column", "type": "Column", "description": "A column containing numeric values", "required": true }
+    ],
+    "returns": "Decimal",
+    "notes": ["Uses the sample formula (n-1 denominator)"],
+    "pitfalls": ["Ignores blank values", "Requires at least two values"],
+    "examples": ["STDEV.S(Sales[Amount])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/stdev-s-function-dax"
+  },
+  {
+    "name": "STDEV.P",
+    "category": "Statistical",
+    "signatures": ["STDEV.P(<column>)"],
+    "description_short": "Returns the population standard deviation of a column.",
+    "params": [
+      { "name": "column", "type": "Column", "description": "A column containing numeric values", "required": true }
+    ],
+    "returns": "Decimal",
+    "notes": ["Uses the population formula (n denominator)"],
+    "pitfalls": ["Ignores blank values"],
+    "examples": ["STDEV.P(Sales[Amount])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/stdev-p-function-dax"
+  },
+  {
+    "name": "STDEVX.S",
+    "category": "Statistical",
+    "signatures": ["STDEVX.S(<table>, <expression>)"],
+    "description_short": "Returns the sample standard deviation of an expression evaluated for each row in a table.",
+    "params": [
+      { "name": "table", "type": "Table", "description": "The table over which to iterate", "required": true },
+      { "name": "expression", "type": "Scalar", "description": "Expression evaluated for each row", "required": true }
+    ],
+    "returns": "Decimal",
+    "notes": ["Iterator function using sample formula (n-1 denominator)"],
+    "pitfalls": ["Blank expression results are excluded"],
+    "examples": ["STDEVX.S(Sales, Sales[Quantity] * Sales[UnitPrice])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/stdevx-s-function-dax"
+  },
+  {
+    "name": "STDEVX.P",
+    "category": "Statistical",
+    "signatures": ["STDEVX.P(<table>, <expression>)"],
+    "description_short": "Returns the population standard deviation of an expression evaluated for each row in a table.",
+    "params": [
+      { "name": "table", "type": "Table", "description": "The table over which to iterate", "required": true },
+      { "name": "expression", "type": "Scalar", "description": "Expression evaluated for each row", "required": true }
+    ],
+    "returns": "Decimal",
+    "notes": ["Iterator function using population formula (n denominator)"],
+    "pitfalls": ["Blank expression results are excluded"],
+    "examples": ["STDEVX.P(Sales, Sales[Quantity] * Sales[UnitPrice])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/stdevx-p-function-dax"
+  },
+  {
+    "name": "VAR.S",
+    "category": "Statistical",
+    "signatures": ["VAR.S(<column>)"],
+    "description_short": "Returns the sample variance of a column.",
+    "params": [
+      { "name": "column", "type": "Column", "description": "A column containing numeric values", "required": true }
+    ],
+    "returns": "Decimal",
+    "notes": ["Uses the sample formula (n-1 denominator)", "This is the statistical variance function, not the VAR variable keyword"],
+    "pitfalls": ["Ignores blank values", "Requires at least two values"],
+    "examples": ["VAR.S(Sales[Amount])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/var-s-function-dax"
+  },
+  {
+    "name": "VAR.P",
+    "category": "Statistical",
+    "signatures": ["VAR.P(<column>)"],
+    "description_short": "Returns the population variance of a column.",
+    "params": [
+      { "name": "column", "type": "Column", "description": "A column containing numeric values", "required": true }
+    ],
+    "returns": "Decimal",
+    "notes": ["Uses the population formula (n denominator)"],
+    "pitfalls": ["Ignores blank values"],
+    "examples": ["VAR.P(Sales[Amount])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/var-p-function-dax"
+  },
+  {
+    "name": "VARX.S",
+    "category": "Statistical",
+    "signatures": ["VARX.S(<table>, <expression>)"],
+    "description_short": "Returns the sample variance of an expression evaluated for each row in a table.",
+    "params": [
+      { "name": "table", "type": "Table", "description": "The table over which to iterate", "required": true },
+      { "name": "expression", "type": "Scalar", "description": "Expression evaluated for each row", "required": true }
+    ],
+    "returns": "Decimal",
+    "notes": ["Iterator function using sample formula (n-1 denominator)"],
+    "pitfalls": ["Blank expression results are excluded"],
+    "examples": ["VARX.S(Sales, Sales[Quantity] * Sales[UnitPrice])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/varx-s-function-dax"
+  },
+  {
+    "name": "VARX.P",
+    "category": "Statistical",
+    "signatures": ["VARX.P(<table>, <expression>)"],
+    "description_short": "Returns the population variance of an expression evaluated for each row in a table.",
+    "params": [
+      { "name": "table", "type": "Table", "description": "The table over which to iterate", "required": true },
+      { "name": "expression", "type": "Scalar", "description": "Expression evaluated for each row", "required": true }
+    ],
+    "returns": "Decimal",
+    "notes": ["Iterator function using population formula (n denominator)"],
+    "pitfalls": ["Blank expression results are excluded"],
+    "examples": ["VARX.P(Sales, Sales[Quantity] * Sales[UnitPrice])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/varx-p-function-dax"
+  },
+  {
+    "name": "PERCENTILE.INC",
+    "category": "Statistical",
+    "signatures": ["PERCENTILE.INC(<column>, <k>)"],
+    "description_short": "Returns the k-th percentile of values in a column (inclusive).",
+    "params": [
+      { "name": "column", "type": "Column", "description": "A column containing numeric values", "required": true },
+      { "name": "k", "type": "Decimal", "description": "Percentile value between 0 and 1 (inclusive)", "required": true }
+    ],
+    "returns": "Decimal",
+    "notes": ["k=0.5 returns the median", "Inclusive: k can be 0 or 1"],
+    "pitfalls": ["k must be between 0 and 1 inclusive"],
+    "examples": ["PERCENTILE.INC(Sales[Amount], 0.75)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/percentile-inc-function-dax"
+  },
+  {
+    "name": "PERCENTILE.EXC",
+    "category": "Statistical",
+    "signatures": ["PERCENTILE.EXC(<column>, <k>)"],
+    "description_short": "Returns the k-th percentile of values in a column (exclusive).",
+    "params": [
+      { "name": "column", "type": "Column", "description": "A column containing numeric values", "required": true },
+      { "name": "k", "type": "Decimal", "description": "Percentile value between 0 and 1 (exclusive)", "required": true }
+    ],
+    "returns": "Decimal",
+    "notes": ["Exclusive: k must be strictly between 0 and 1"],
+    "pitfalls": ["k must be strictly between 0 and 1 (not equal to 0 or 1)"],
+    "examples": ["PERCENTILE.EXC(Sales[Amount], 0.75)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/percentile-exc-function-dax"
+  },
+  {
+    "name": "PERCENTILEX.INC",
+    "category": "Statistical",
+    "signatures": ["PERCENTILEX.INC(<table>, <expression>, <k>)"],
+    "description_short": "Returns the k-th percentile of an expression evaluated for each row in a table (inclusive).",
+    "params": [
+      { "name": "table", "type": "Table", "description": "The table over which to iterate", "required": true },
+      { "name": "expression", "type": "Scalar", "description": "Expression evaluated for each row", "required": true },
+      { "name": "k", "type": "Decimal", "description": "Percentile value between 0 and 1 (inclusive)", "required": true }
+    ],
+    "returns": "Decimal",
+    "notes": ["Iterator function", "Inclusive: k can be 0 or 1"],
+    "pitfalls": ["k must be between 0 and 1 inclusive"],
+    "examples": ["PERCENTILEX.INC(Sales, Sales[Quantity] * Sales[UnitPrice], 0.9)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/percentilex-inc-function-dax"
+  },
+  {
+    "name": "PERCENTILEX.EXC",
+    "category": "Statistical",
+    "signatures": ["PERCENTILEX.EXC(<table>, <expression>, <k>)"],
+    "description_short": "Returns the k-th percentile of an expression evaluated for each row in a table (exclusive).",
+    "params": [
+      { "name": "table", "type": "Table", "description": "The table over which to iterate", "required": true },
+      { "name": "expression", "type": "Scalar", "description": "Expression evaluated for each row", "required": true },
+      { "name": "k", "type": "Decimal", "description": "Percentile value between 0 and 1 (exclusive)", "required": true }
+    ],
+    "returns": "Decimal",
+    "notes": ["Iterator function", "Exclusive: k must be strictly between 0 and 1"],
+    "pitfalls": ["k must be strictly between 0 and 1 (not equal to 0 or 1)"],
+    "examples": ["PERCENTILEX.EXC(Sales, Sales[Quantity] * Sales[UnitPrice], 0.9)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/percentilex-exc-function-dax"
+  },
+  {
+    "name": "ISNUMBER",
+    "category": "Information",
+    "signatures": ["ISNUMBER(<value>)"],
+    "description_short": "Returns TRUE if the value is a number.",
+    "params": [
+      { "name": "value", "type": "Scalar", "description": "The value to test", "required": true }
+    ],
+    "returns": "Boolean",
+    "notes": ["Useful for data validation"],
+    "pitfalls": ["BLANK is not considered a number"],
+    "examples": ["ISNUMBER(123)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/isnumber-function-dax"
+  },
+  {
+    "name": "ISTEXT",
+    "category": "Information",
+    "signatures": ["ISTEXT(<value>)"],
+    "description_short": "Returns TRUE if the value is text.",
+    "params": [
+      { "name": "value", "type": "Scalar", "description": "The value to test", "required": true }
+    ],
+    "returns": "Boolean",
+    "notes": ["Useful for data validation"],
+    "pitfalls": ["BLANK is not considered text"],
+    "examples": ["ISTEXT(\"Hello\")"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/istext-function-dax"
+  },
+  {
+    "name": "ISERROR",
+    "category": "Information",
+    "signatures": ["ISERROR(<value>)"],
+    "description_short": "Returns TRUE if the value is an error.",
+    "params": [
+      { "name": "value", "type": "Scalar", "description": "The value to test", "required": true }
+    ],
+    "returns": "Boolean",
+    "notes": ["Checks for any error type", "Often used with IF for error handling"],
+    "pitfalls": ["Consider using IFERROR for simpler error handling"],
+    "examples": ["IF(ISERROR(FIND(\"x\", \"Hello\")), \"Not found\", \"Found\")"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/iserror-function-dax"
+  },
+  {
+    "name": "ISLOGICAL",
+    "category": "Information",
+    "signatures": ["ISLOGICAL(<value>)"],
+    "description_short": "Returns TRUE if the value is a logical (TRUE/FALSE) value.",
+    "params": [
+      { "name": "value", "type": "Scalar", "description": "The value to test", "required": true }
+    ],
+    "returns": "Boolean",
+    "notes": ["Tests specifically for TRUE or FALSE values"],
+    "pitfalls": ["BLANK is not considered a logical value"],
+    "examples": ["ISLOGICAL(TRUE)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/islogical-function-dax"
+  },
+  {
+    "name": "ISINSCOPE",
+    "category": "Information",
+    "signatures": ["ISINSCOPE(<column>)"],
+    "description_short": "Returns TRUE when the specified column is the level in a hierarchy of levels.",
+    "params": [
+      { "name": "column", "type": "Column", "description": "Column to check if it is in scope", "required": true }
+    ],
+    "returns": "Boolean",
+    "notes": ["Useful for conditional formatting and dynamic measures in matrix visuals", "Returns TRUE when column is being grouped by in the current context"],
+    "pitfalls": ["Different from ISFILTERED; ISINSCOPE checks if the column is used for grouping"],
+    "examples": ["IF(ISINSCOPE(Product[SubCategory]), [Sales], BLANK())"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/isinscope-function-dax"
+  },
+  {
+    "name": "ISNONTEXT",
+    "category": "Information",
+    "signatures": ["ISNONTEXT(<value>)"],
+    "description_short": "Returns TRUE if the value is not text.",
+    "params": [
+      { "name": "value", "type": "Scalar", "description": "The value to test", "required": true }
+    ],
+    "returns": "Boolean",
+    "notes": ["BLANK returns TRUE (blank is not text)"],
+    "pitfalls": ["Opposite of ISTEXT but also returns TRUE for BLANK"],
+    "examples": ["ISNONTEXT(123)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/isnontext-function-dax"
+  },
+  {
+    "name": "ISEVEN",
+    "category": "Information",
+    "signatures": ["ISEVEN(<number>)"],
+    "description_short": "Returns TRUE if the number is even.",
+    "params": [
+      { "name": "number", "type": "Decimal", "description": "The number to test", "required": true }
+    ],
+    "returns": "Boolean",
+    "notes": ["Number is truncated to integer before testing"],
+    "pitfalls": ["Non-numeric values cause an error"],
+    "examples": ["ISEVEN(4)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/iseven-function-dax"
+  },
+  {
+    "name": "ISODD",
+    "category": "Information",
+    "signatures": ["ISODD(<number>)"],
+    "description_short": "Returns TRUE if the number is odd.",
+    "params": [
+      { "name": "number", "type": "Decimal", "description": "The number to test", "required": true }
+    ],
+    "returns": "Boolean",
+    "notes": ["Number is truncated to integer before testing"],
+    "pitfalls": ["Non-numeric values cause an error"],
+    "examples": ["ISODD(3)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/isodd-function-dax"
+  },
+  {
+    "name": "USERPRINCIPALNAME",
+    "category": "Information",
+    "signatures": ["USERPRINCIPALNAME()"],
+    "description_short": "Returns the user principal name (UPN) of the current user.",
+    "params": [],
+    "returns": "Text",
+    "notes": ["Commonly used for row-level security (RLS)", "Returns the UPN from Azure AD / Microsoft Entra ID"],
+    "pitfalls": ["Returns the service account in scheduled refresh scenarios", "Only works in Power BI Service, not in Desktop during development"],
+    "examples": ["USERPRINCIPALNAME()"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/userprincipalname-function-dax"
+  },
+  {
+    "name": "USERNAME",
+    "category": "Information",
+    "signatures": ["USERNAME()"],
+    "description_short": "Returns the domain and username of the current user.",
+    "params": [],
+    "returns": "Text",
+    "notes": ["Returns in domain\\username format", "Used for row-level security"],
+    "pitfalls": ["Prefer USERPRINCIPALNAME for cloud-based RLS"],
+    "examples": ["USERNAME()"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/username-function-dax"
+  },
+  {
+    "name": "IFERROR",
+    "category": "Logical",
+    "signatures": ["IFERROR(<value>, <value_if_error>)"],
+    "description_short": "Returns value_if_error if the first argument evaluates to an error, otherwise returns the first argument.",
+    "params": [
+      { "name": "value", "type": "Scalar", "description": "The expression to evaluate", "required": true },
+      { "name": "value_if_error", "type": "Scalar", "description": "The value to return if the first argument is an error", "required": true }
+    ],
+    "returns": "Scalar",
+    "notes": ["Cleaner alternative to IF(ISERROR(...), ..., ...)"],
+    "pitfalls": ["Both arguments must return compatible data types"],
+    "examples": ["IFERROR(FIND(\"x\", \"Hello\"), -1)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/iferror-function-dax"
+  },
+  {
+    "name": "CROSSJOIN",
+    "category": "Table",
+    "signatures": ["CROSSJOIN(<table1>, <table2>, ...)"],
+    "description_short": "Returns the Cartesian product of two or more tables.",
+    "params": [
+      { "name": "table1", "type": "Table", "description": "First table", "required": true },
+      { "name": "table2", "type": "Table", "description": "Second table", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Result has all columns from all tables", "Row count is the product of all table row counts"],
+    "pitfalls": ["Can produce very large result sets", "Column names must not conflict across tables"],
+    "examples": ["CROSSJOIN(VALUES(Product[Color]), VALUES(Product[Size]))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/crossjoin-function-dax"
+  },
+  {
+    "name": "NATURALINNERJOIN",
+    "category": "Table",
+    "signatures": ["NATURALINNERJOIN(<left_table>, <right_table>)"],
+    "description_short": "Performs an inner join of two tables using common columns.",
+    "params": [
+      { "name": "left_table", "type": "Table", "description": "The left table", "required": true },
+      { "name": "right_table", "type": "Table", "description": "The right table", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Joins on columns with the same name and data lineage", "Only returns rows that match in both tables"],
+    "pitfalls": ["Requires common columns with the same lineage"],
+    "examples": ["NATURALINNERJOIN(DimProduct, DimCategory)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/naturalinnerjoin-function-dax"
+  },
+  {
+    "name": "NATURALLEFTOUTERJOIN",
+    "category": "Table",
+    "signatures": ["NATURALLEFTOUTERJOIN(<left_table>, <right_table>)"],
+    "description_short": "Performs a left outer join of two tables using common columns.",
+    "params": [
+      { "name": "left_table", "type": "Table", "description": "The left table", "required": true },
+      { "name": "right_table", "type": "Table", "description": "The right table", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Returns all rows from the left table", "Unmatched rows from the left table have BLANK values for right table columns"],
+    "pitfalls": ["Requires common columns with the same lineage"],
+    "examples": ["NATURALLEFTOUTERJOIN(DimProduct, DimCategory)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/naturalleftouterjoin-function-dax"
+  },
+  {
+    "name": "DISTINCT",
+    "category": "Table",
+    "signatures": ["DISTINCT(<table_or_column>)"],
+    "description_short": "Returns a one-column table of distinct values from a column, or a table with distinct row combinations.",
+    "params": [
+      { "name": "table_or_column", "type": "Table/Column", "description": "A column or table expression", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Unlike VALUES, DISTINCT does not include the blank row for invalid relationships"],
+    "pitfalls": ["Does not include the blank row that VALUES would include"],
+    "examples": ["DISTINCT(Product[Color])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/distinct-table-function-dax"
+  },
+  {
+    "name": "GENERATESERIES",
+    "category": "Table",
+    "signatures": ["GENERATESERIES(<start>, <end>, <step>)"],
+    "description_short": "Returns a single-column table containing a sequence of values.",
+    "params": [
+      { "name": "start", "type": "Decimal", "description": "The starting value", "required": true },
+      { "name": "end", "type": "Decimal", "description": "The ending value (inclusive if reached by step)", "required": true },
+      { "name": "step", "type": "Decimal", "description": "The increment between values (optional, default 1)", "required": false }
+    ],
+    "returns": "Table",
+    "notes": ["Column is named [Value]", "End value is included if exactly reached by step increments"],
+    "pitfalls": ["Step must be positive if start < end, or negative if start > end"],
+    "examples": ["GENERATESERIES(1, 10, 1)"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/generateseries-function-dax"
+  },
+  {
+    "name": "DATATABLE",
+    "category": "Table",
+    "signatures": ["DATATABLE(<name1>, <type1>, <name2>, <type2>, ..., <data>)"],
+    "description_short": "Creates an inline table with specified columns, data types, and data.",
+    "params": [
+      { "name": "name1", "type": "String", "description": "Name of the first column", "required": true },
+      { "name": "type1", "type": "Enum", "description": "Data type (INTEGER, DOUBLE, STRING, BOOLEAN, DATETIME)", "required": true },
+      { "name": "data", "type": "Table", "description": "The data rows enclosed in double curly braces", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Data is provided in row sets within double curly braces {{...}}", "Useful for creating small reference tables inline"],
+    "pitfalls": ["Only supports basic data types", "Not suitable for large tables"],
+    "examples": ["DATATABLE(\"Name\", STRING, \"Age\", INTEGER, {{\"Alice\", 30}, {\"Bob\", 25}})"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/datatable-function-dax"
+  },
+  {
+    "name": "GROUPBY",
+    "category": "Table",
+    "signatures": ["GROUPBY(<table>, <groupBy_column>, <name>, <expression>, ...)"],
+    "description_short": "Groups a table by specified columns and adds summary columns using CURRENTGROUP().",
+    "params": [
+      { "name": "table", "type": "Table", "description": "The table to group", "required": true },
+      { "name": "groupBy_column", "type": "Column", "description": "Column to group by", "required": true },
+      { "name": "name", "type": "String", "description": "Name for the extension column", "required": false },
+      { "name": "expression", "type": "Scalar", "description": "Expression using CURRENTGROUP() to compute aggregation", "required": false }
+    ],
+    "returns": "Table",
+    "notes": ["Extension columns must use CURRENTGROUP() with an X-aggregation function", "More flexible than SUMMARIZE for complex grouping"],
+    "pitfalls": ["CURRENTGROUP() can only be used inside GROUPBY extension columns"],
+    "examples": ["GROUPBY(Sales, Sales[Region], \"Total\", SUMX(CURRENTGROUP(), Sales[Amount]))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/groupby-function-dax"
+  },
+  {
+    "name": "ALLSELECTED",
+    "category": "Filter",
+    "signatures": ["ALLSELECTED(<table_or_column>, <column2>, ...)"],
+    "description_short": "Removes context filters from columns and rows in the current query while retaining all other filters from slicers and external filters.",
+    "params": [
+      { "name": "table_or_column", "type": "Table/Column", "description": "A table or column reference (optional)", "required": false },
+      { "name": "column2", "type": "Column", "description": "Additional columns (optional)", "required": false }
+    ],
+    "returns": "Table",
+    "notes": ["Commonly used for percentage-of-visible-total calculations", "Respects slicer and page-level filter selections"],
+    "pitfalls": ["Complex interaction with nested CALCULATE contexts", "May produce unexpected results in visual calculations"],
+    "examples": ["DIVIDE([Sales], CALCULATE([Sales], ALLSELECTED(Product)))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/allselected-function-dax"
+  },
+  {
+    "name": "ALLNOBLANKROW",
+    "category": "Filter",
+    "signatures": ["ALLNOBLANKROW(<table_or_column>)"],
+    "description_short": "Returns all rows in a table or all values in a column, ignoring filters, but excluding the blank row.",
+    "params": [
+      { "name": "table_or_column", "type": "Table/Column", "description": "A table or column reference", "required": true }
+    ],
+    "returns": "Table",
+    "notes": ["Like ALL but excludes the blank row that appears for invalid relationships"],
+    "pitfalls": ["Only differs from ALL when there are blank rows from broken relationships"],
+    "examples": ["CALCULATE([Sales], ALLNOBLANKROW(Product[Color]))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/allnoblankrow-function-dax"
+  },
+  {
+    "name": "COUNTBLANK",
+    "category": "Aggregation",
+    "signatures": ["COUNTBLANK(<column>)"],
+    "description_short": "Counts the number of blank values in a column.",
+    "params": [
+      { "name": "column", "type": "Column", "description": "The column to count blank values in", "required": true }
+    ],
+    "returns": "Integer",
+    "notes": ["Counts BLANK values and empty strings", "Complement of COUNTA"],
+    "pitfalls": ["Empty strings are counted as blank"],
+    "examples": ["COUNTBLANK(Sales[Discount])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/countblank-function-dax"
+  },
+  {
+    "name": "COUNTA",
+    "category": "Aggregation",
+    "signatures": ["COUNTA(<column>)"],
+    "description_short": "Counts the number of non-blank values in a column.",
+    "params": [
+      { "name": "column", "type": "Column", "description": "The column to count non-blank values in", "required": true }
+    ],
+    "returns": "Integer",
+    "notes": ["Counts any non-blank value regardless of data type", "Works with text, numbers, dates, and logical values"],
+    "pitfalls": ["Unlike COUNT, COUNTA works with all data types, not just numbers"],
+    "examples": ["COUNTA(Customers[Email])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/counta-function-dax"
+  },
+  {
+    "name": "COUNTAX",
+    "category": "Aggregation",
+    "signatures": ["COUNTAX(<table>, <expression>)"],
+    "description_short": "Counts the number of non-blank results of an expression evaluated for each row in a table.",
+    "params": [
+      { "name": "table", "type": "Table", "description": "The table over which to iterate", "required": true },
+      { "name": "expression", "type": "Scalar", "description": "Expression evaluated for each row", "required": true }
+    ],
+    "returns": "Integer",
+    "notes": ["Iterator function, counts non-blank expression results"],
+    "pitfalls": ["Blank expression results are not counted"],
+    "examples": ["COUNTAX(Sales, Sales[Quantity] * Sales[UnitPrice])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/countax-function-dax"
+  },
+  {
+    "name": "PRODUCTX",
+    "category": "Aggregation",
+    "signatures": ["PRODUCTX(<table>, <expression>)"],
+    "description_short": "Returns the product of an expression evaluated for each row in a table.",
+    "params": [
+      { "name": "table", "type": "Table", "description": "The table over which to iterate", "required": true },
+      { "name": "expression", "type": "Scalar", "description": "Expression evaluated for each row", "required": true }
+    ],
+    "returns": "Decimal",
+    "notes": ["Iterator function that multiplies results together", "Useful for compound growth calculations"],
+    "pitfalls": ["A single zero in the results will make the entire product zero"],
+    "examples": ["PRODUCTX(Returns, 1 + Returns[Rate])"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/productx-function-dax"
+  },
+  {
+    "name": "FIRSTNONBLANK",
+    "category": "Aggregation",
+    "signatures": ["FIRSTNONBLANK(<column>, <expression>)"],
+    "description_short": "Returns the first value in a column where the expression is not blank.",
+    "params": [
+      { "name": "column", "type": "Column", "description": "The column to search through", "required": true },
+      { "name": "expression", "type": "Scalar", "description": "Expression evaluated for each row; returns the first column value where this is not blank", "required": true }
+    ],
+    "returns": "Scalar",
+    "notes": ["Scans column values in ascending order", "Returns a single-row table"],
+    "pitfalls": ["Column values are evaluated in ascending order"],
+    "examples": ["FIRSTNONBLANK(Date[Date], CALCULATE(SUM(Sales[Amount])))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/firstnonblank-function-dax"
+  },
+  {
+    "name": "LASTNONBLANK",
+    "category": "Aggregation",
+    "signatures": ["LASTNONBLANK(<column>, <expression>)"],
+    "description_short": "Returns the last value in a column where the expression is not blank.",
+    "params": [
+      { "name": "column", "type": "Column", "description": "The column to search through", "required": true },
+      { "name": "expression", "type": "Scalar", "description": "Expression evaluated for each row; returns the last column value where this is not blank", "required": true }
+    ],
+    "returns": "Scalar",
+    "notes": ["Scans column values in descending order", "Returns a single-row table"],
+    "pitfalls": ["Column values are evaluated in descending order"],
+    "examples": ["LASTNONBLANK(Date[Date], CALCULATE(SUM(Sales[Amount])))"],
+    "learn_url": "https://learn.microsoft.com/en-us/dax/lastnonblank-function-dax"
+  }
+]
