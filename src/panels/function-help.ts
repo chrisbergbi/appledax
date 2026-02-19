@@ -1,4 +1,4 @@
-import type * as monaco from 'monaco-editor';
+import type { EditorAdapter } from '../editor/editor-interface';
 import { getFunctionByName } from '../knowledge/lookup';
 import type { DaxFunction } from '../types';
 import { t } from '../i18n/index';
@@ -6,15 +6,13 @@ import { t } from '../i18n/index';
 export class FunctionHelpPanel {
   private container: HTMLElement;
 
-  constructor(editor: monaco.editor.IStandaloneCodeEditor) {
+  constructor(editor: EditorAdapter) {
     this.container = document.getElementById('function-help-panel')!;
 
-    editor.onDidChangeCursorPosition((e) => {
-      const model = editor.getModel();
-      if (!model) return;
-      const word = model.getWordAtPosition(e.position);
-      if (word) {
-        const func = getFunctionByName(word.word);
+    editor.onCursorChange((pos) => {
+      const wordInfo = editor.getWordAtPosition(pos);
+      if (wordInfo) {
+        const func = getFunctionByName(wordInfo.word);
         if (func) {
           this.renderFunction(func);
           return;

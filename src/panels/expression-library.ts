@@ -1,5 +1,5 @@
 import { t } from '../i18n/index';
-import type * as monaco from 'monaco-editor';
+import type { EditorAdapter } from '../editor/editor-interface';
 import * as XLSX from 'xlsx';
 
 /* ── Data model ─────────────────────────────────────────────── */
@@ -90,12 +90,12 @@ async function idbPut(key: string, value: LibraryData): Promise<void> {
 
 export class ExpressionLibraryPanel {
   private container: HTMLElement;
-  private editor: monaco.editor.IStandaloneCodeEditor;
+  private editor: EditorAdapter;
   private data: LibraryData = { version: 2, folders: [], ungrouped: [] };
   private searchTerm = '';
   private ready = false;
 
-  constructor(editor: monaco.editor.IStandaloneCodeEditor) {
+  constructor(editor: EditorAdapter) {
     this.container = document.getElementById('expression-library-panel')!;
     this.editor = editor;
     this.init();
@@ -163,10 +163,7 @@ export class ExpressionLibraryPanel {
   /* ── Public API ───────────────────────────────────────────── */
 
   public saveCurrentExpression(): void {
-    const model = this.editor.getModel();
-    if (!model) return;
-
-    const expression = model.getValue().trim();
+    const expression = this.editor.getValue().trim();
     if (!expression) return;
 
     const name = prompt(t('el.name_prompt'));
@@ -187,12 +184,7 @@ export class ExpressionLibraryPanel {
   /* ── Expression actions ───────────────────────────────────── */
 
   private loadExpression(expr: SavedExpression): void {
-    const model = this.editor.getModel();
-    if (!model) return;
-    this.editor.executeEdits('expression-library', [{
-      range: model.getFullModelRange(),
-      text: expr.expression,
-    }]);
+    this.editor.setValue(expr.expression);
     this.editor.focus();
   }
 
@@ -216,9 +208,7 @@ export class ExpressionLibraryPanel {
   }
 
   private updateExpression(expr: SavedExpression): void {
-    const model = this.editor.getModel();
-    if (!model) return;
-    expr.expression = model.getValue().trim();
+    expr.expression = this.editor.getValue().trim();
     expr.updatedAt = Date.now();
     this.save();
     this.render();

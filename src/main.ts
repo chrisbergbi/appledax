@@ -1,6 +1,4 @@
-import * as monaco from 'monaco-editor';
-import { createEditor } from './editor/setup';
-import { LintEngine } from './linter/engine';
+import { createEditor } from './editor/cm/setup';
 import { DiagnosticsPanel } from './panels/diagnostics';
 import { FunctionHelpPanel } from './panels/function-help';
 import { BestPracticesPanel } from './panels/best-practices';
@@ -21,13 +19,12 @@ if (savedTheme === 'light') {
 
 // Initialize editor
 const editorContainer = document.getElementById('editor-pane')!;
-const editor = createEditor(editorContainer);
+const editor = createEditor(editorContainer, savedTheme as 'dark' | 'light');
 
-// Apply saved theme to Monaco editor + button icon
+// Apply saved theme to button icon
 const themeBtn = document.getElementById('btn-theme');
-if (savedTheme === 'light') {
-  monaco.editor.setTheme('dax-light');
-  if (themeBtn) themeBtn.innerHTML = '&#9728;'; // ☀ sun
+if (savedTheme === 'light' && themeBtn) {
+  themeBtn.innerHTML = '&#9728;'; // ☀ sun
 }
 
 // Theme toggle handler
@@ -35,11 +32,11 @@ function applyTheme(theme: string): void {
   document.documentElement.classList.add('theme-transitioning');
   if (theme === 'light') {
     document.documentElement.setAttribute('data-theme', 'light');
-    monaco.editor.setTheme('dax-light');
+    editor.setTheme('light');
     if (themeBtn) themeBtn.innerHTML = '&#9728;'; // ☀ sun
   } else {
     document.documentElement.removeAttribute('data-theme');
-    monaco.editor.setTheme('dax-dark');
+    editor.setTheme('dark');
     if (themeBtn) themeBtn.innerHTML = '&#9790;'; // ☾ moon
   }
   localStorage.setItem(THEME_KEY, theme);
@@ -51,11 +48,8 @@ themeBtn?.addEventListener('click', () => {
   applyTheme(current === 'light' ? 'dark' : 'light');
 });
 
-// Initialize linter
-const lintEngine = new LintEngine(editor);
-
-// Initialize panels
-new DiagnosticsPanel(editor, lintEngine);
+// Initialize panels (no more LintEngine - CM6 linter handles that)
+new DiagnosticsPanel(editor);
 new FunctionHelpPanel(editor);
 new BestPracticesPanel();
 new ModelBrowserPanel(editor);
@@ -90,9 +84,9 @@ document.querySelectorAll<HTMLElement>('#side-tabs .tab').forEach((tab) => {
 
 // Toolbar: Copy button
 document.getElementById('btn-copy')?.addEventListener('click', () => {
-  const model = editor.getModel();
-  if (model) {
-    navigator.clipboard.writeText(model.getValue()).then(() => {
+  const text = editor.getValue();
+  if (text) {
+    navigator.clipboard.writeText(text).then(() => {
       const btn = document.getElementById('btn-copy');
       if (btn) {
         const orig = btn.textContent;
@@ -103,17 +97,13 @@ document.getElementById('btn-copy')?.addEventListener('click', () => {
   }
 });
 
-// Toolbar: Format button (basic indentation formatting)
+// Toolbar: Format button
 document.getElementById('btn-format')?.addEventListener('click', () => {
-  const model = editor.getModel();
-  if (!model) return;
+  const source = editor.getValue();
+  if (!source) return;
 
-  const source = model.getValue();
   const formatted = formatDax(source);
-  editor.executeEdits('format', [{
-    range: model.getFullModelRange(),
-    text: formatted,
-  }]);
+  editor.setValue(formatted);
 });
 
 function formatDax(source: string): string {
@@ -148,11 +138,8 @@ function formatDax(source: string): string {
     if (!chunk) { output.push(''); continue; }
     if (chunk.startsWith('//')) { output.push(TAB.repeat(indent) + chunk); continue; }
 
-    // Tokenize into meaningful pieces, respecting strings and brackets
     const tokens = tokenizeForFormat(chunk);
     formatTokens(tokens, output, indent);
-
-    // Indent tracking is handled inside formatTokens
   }
 
   return output.join('\n');
@@ -190,7 +177,7 @@ function tokenizeForFormat(input: string): string[] {
       continue;
     }
 
-    // Open paren — emit what we have, then emit '('
+    // Open paren
     if (ch === '(') {
       if (current.trim()) tokens.push(current.trim());
       current = '';
@@ -206,7 +193,7 @@ function tokenizeForFormat(input: string): string[] {
       i++; continue;
     }
 
-    // Comma — emit what we have, then emit ','
+    // Comma
     if (ch === ',') {
       if (current.trim()) tokens.push(current.trim());
       current = '';
@@ -226,7 +213,6 @@ function formatTokens(tokens: string[], output: string[], startIndent: number): 
   const TAB = '    ';
   let indent = startIndent;
   let lineBuffer = '';
-  let parenDepth = 0;
 
   function flushLine(): void {
     if (lineBuffer.trim()) {
@@ -240,7 +226,6 @@ function formatTokens(tokens: string[], output: string[], startIndent: number): 
     const upper = tok.toUpperCase();
 
     if (tok === '(') {
-      parenDepth++;
       lineBuffer += '(';
       flushLine();
       indent++;
@@ -248,11 +233,9 @@ function formatTokens(tokens: string[], output: string[], startIndent: number): 
     }
 
     if (tok === ')') {
-      parenDepth--;
       flushLine();
       indent = Math.max(startIndent, indent - 1);
       lineBuffer = ')';
-      // If next token is comma or another close paren, don't flush yet
       const next = tokens[i + 1];
       if (!next || (next !== ',' && next !== ')')) {
         flushLine();
@@ -277,7 +260,6 @@ function formatTokens(tokens: string[], output: string[], startIndent: number): 
 
     if (upper === 'RETURN' || upper.startsWith('RETURN ')) {
       flushLine();
-      // RETURN should be at same level as its VAR
       const retIndent = Math.max(startIndent, indent);
       output.push(TAB.repeat(retIndent) + tok);
       indent = retIndent + 1;

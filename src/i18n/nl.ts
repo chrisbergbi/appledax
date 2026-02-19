@@ -1,6 +1,6 @@
 export const nl: Record<string, string> = {
   // App
-  'app.title': 'DAX Validator',
+  'app.title': 'APPLEDAX',
   'app.btn_format': 'Opmaak',
   'app.btn_format_title': 'DAX opmaken (Shift+Alt+F)',
   'app.btn_copy': 'Kopieer',

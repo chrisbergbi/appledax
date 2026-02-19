@@ -1,6 +1,6 @@
 import type { LintDiagnostic } from '../types';
-import type * as monaco from 'monaco-editor';
-import { LintEngine } from '../linter/engine';
+import type { EditorAdapter } from '../editor/editor-interface';
+import { onDiagnosticsChanged } from '../editor/cm/dax-lint';
 import { t } from '../i18n/index';
 
 const SEVERITY_ICONS: Record<string, string> = {
@@ -11,15 +11,15 @@ const SEVERITY_ICONS: Record<string, string> = {
 
 export class DiagnosticsPanel {
   private container: HTMLElement;
-  private editor: monaco.editor.IStandaloneCodeEditor;
+  private editor: EditorAdapter;
   private currentFilter = 'all';
   private diagnostics: LintDiagnostic[] = [];
 
-  constructor(editor: monaco.editor.IStandaloneCodeEditor, engine: LintEngine) {
+  constructor(editor: EditorAdapter) {
     this.container = document.getElementById('diagnostics-list')!;
     this.editor = editor;
 
-    engine.onDiagnosticsChanged((diags) => {
+    onDiagnosticsChanged((diags) => {
       this.diagnostics = diags;
       this.render();
       this.updateBadges();
@@ -79,8 +79,8 @@ export class DiagnosticsPanel {
       row.appendChild(rule);
 
       row.addEventListener('click', () => {
-        this.editor.setPosition({ lineNumber: diag.startLine, column: diag.startCol });
-        this.editor.revealLineInCenter(diag.startLine);
+        this.editor.setCursorPosition(diag.startLine, diag.startCol);
+        this.editor.revealLine(diag.startLine);
         this.editor.focus();
       });
 

@@ -2,13 +2,13 @@ import { t } from '../i18n/index';
 import * as store from '../model/store';
 import { parseTmdlFiles } from '../model/tmdl-parser';
 import { parseJsonModel } from '../model/json-parser';
-import type * as monaco from 'monaco-editor';
+import type { EditorAdapter } from '../editor/editor-interface';
 
 export class ModelBrowserPanel {
   private container: HTMLElement;
-  private editor: monaco.editor.IStandaloneCodeEditor;
+  private editor: EditorAdapter;
 
-  constructor(editor: monaco.editor.IStandaloneCodeEditor) {
+  constructor(editor: EditorAdapter) {
     this.container = document.getElementById('model-browser-panel')!;
     this.editor = editor;
 
@@ -67,7 +67,6 @@ export class ModelBrowserPanel {
         </div>`
       ).join('');
 
-      // Show related tables for this table
       const relatedTables = store.getRelatedTables(table.name);
       const relItems = relatedTables.map((rel) =>
         `<div class="mb-item mb-relationship" title="${esc(rel.viaColumn)} → ${esc(rel.relatedColumn)}">
@@ -170,28 +169,26 @@ export class ModelBrowserPanel {
   }
 
   private attachTreeHandlers(): void {
-    // Toggle table expand/collapse
     this.container.querySelectorAll<HTMLElement>('.mb-table-header').forEach((header) => {
       header.addEventListener('click', () => {
         const body = header.nextElementSibling as HTMLElement;
         const toggle = header.querySelector('.mb-toggle') as HTMLElement;
         if (body.style.display === 'none') {
           body.style.display = 'block';
-          toggle.textContent = '\u25BC'; // down arrow
+          toggle.textContent = '\u25BC';
         } else {
           body.style.display = 'none';
-          toggle.textContent = '\u25B6'; // right arrow
+          toggle.textContent = '\u25B6';
         }
       });
     });
 
-    // Click on item to insert reference
     this.container.querySelectorAll<HTMLElement>('.mb-item').forEach((item) => {
       item.addEventListener('click', (e) => {
         e.stopPropagation();
         const insertText = item.dataset.insert;
         if (insertText) {
-          this.editor.trigger('model-browser', 'type', { text: insertText });
+          this.editor.insertAtCursor(insertText);
           this.editor.focus();
         }
       });
@@ -207,7 +204,6 @@ export class ModelBrowserPanel {
     const files: Array<{ name: string; content: string }> = [];
 
     for (const file of Array.from(fileList)) {
-      // Only process .tmdl and .json files (skip others when uploading folders)
       const lower = file.name.toLowerCase();
       if (!lower.endsWith('.tmdl') && !lower.endsWith('.json')) continue;
 
@@ -218,12 +214,10 @@ export class ModelBrowserPanel {
     if (files.length === 0) return;
 
     try {
-      // Check if any file is JSON
       const jsonFiles = files.filter((f) => f.name.endsWith('.json'));
       const tmdlFiles = files.filter((f) => f.name.endsWith('.tmdl'));
 
       if (jsonFiles.length > 0) {
-        // Parse first JSON file
         const model = parseJsonModel(jsonFiles[0].content);
         store.setModel(model);
       } else if (tmdlFiles.length > 0) {
