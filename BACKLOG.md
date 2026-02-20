@@ -73,6 +73,14 @@ Items are roughly ordered by priority within each category.
 
 ---
 
+## UI / Layout
+
+- [ ] **Move AI assistant panel to the right side**
+  The AI assistant panel currently renders in the left drawer alongside the other panels. Reposition it to a dedicated right-side panel so it can be open simultaneously with other panels (model browser, function help, etc.), giving a more natural chat-on-the-right layout.
+  `Effort: Medium`
+
+---
+
 ## Completed
 
 - [x] **Detect browser locale + language switcher**

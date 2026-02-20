@@ -1039,7 +1039,8 @@ html, body {
 .mb-model-info {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
   padding: 8px 14px;
   background: var(--glass-bg);
   backdrop-filter: blur(var(--glass-blur));
@@ -1049,6 +1050,9 @@ html, body {
   margin-bottom: 10px;
   box-shadow: var(--shadow-sm);
 }
+
+.mb-model-info .mb-model-stats { flex: 1; }
+.mb-model-info .mb-clear-btn { flex-shrink: 0; }
 
 .mb-model-stats { font-size: 11px; color: var(--color-success); font-weight: 500; }
 
@@ -1067,6 +1071,20 @@ html, body {
   color: var(--color-error);
   border-color: var(--color-error);
   background: var(--color-error-dim);
+}
+
+.mb-default-badge {
+  display: inline-block;
+  background: var(--accent-primary-dim);
+  color: var(--accent-primary);
+  border: 1px solid var(--accent-primary);
+  border-radius: var(--radius-sm);
+  padding: 1px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
 }
 
 .mb-tree { overflow-y: auto; }
@@ -1803,7 +1821,7 @@ html.theme-transitioning *::after {
 
 .ai-hint {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--text-ghost);
 }
 
 .ai-signin h3 {
@@ -1819,7 +1837,7 @@ html.theme-transitioning *::after {
 }
 
 .ai-signin-btn {
-  background: var(--accent);
+  background: var(--accent-primary);
   color: #fff;
   border: none;
   border-radius: var(--radius-md);
@@ -1832,12 +1850,12 @@ html.theme-transitioning *::after {
 }
 
 .ai-signin-btn:hover {
-  background: var(--accent-hover);
+  background: var(--accent-primary-hover);
 }
 
 .ai-privacy-note {
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--text-ghost);
   margin-top: 12px;
   font-style: italic;
 }
@@ -1848,6 +1866,30 @@ html.theme-transitioning *::after {
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+}
+
+.ai-chat-header {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.ai-clear-btn {
+  background: none;
+  border: 1px solid var(--border-default);
+  color: var(--text-tertiary);
+  border-radius: var(--radius-sm);
+  padding: 2px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ai-clear-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+  background: var(--surface-3);
 }
 
 .ai-messages {
@@ -1906,7 +1948,7 @@ html.theme-transitioning *::after {
 
 .ai-msg-user {
   align-self: flex-end;
-  background: var(--accent);
+  background: var(--accent-primary);
   color: #fff;
 }
 
@@ -1960,7 +2002,7 @@ html.theme-transitioning *::after {
 /* Loading */
 .ai-loading {
   font-style: italic;
-  color: var(--text-muted);
+  color: var(--text-ghost);
 }
 
 .ai-dots {
@@ -1970,6 +2012,61 @@ html.theme-transitioning *::after {
 @keyframes ai-pulse {
   0%, 100% { opacity: 0.3; }
   50% { opacity: 1; }
+}
+
+/* Streaming cursor */
+.ai-cursor {
+  display: inline;
+  animation: ai-blink 0.8s infinite;
+  color: var(--accent-primary);
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+@keyframes ai-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Markdown elements in AI messages */
+.ai-msg-assistant .ai-h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 8px 0 4px;
+}
+
+.ai-msg-assistant .ai-h4 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 6px 0 2px;
+}
+
+.ai-msg-assistant strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.ai-msg-assistant em {
+  font-style: italic;
+}
+
+.ai-list {
+  margin: 4px 0;
+  padding-left: 18px;
+}
+
+.ai-li {
+  margin: 2px 0;
+  line-height: 1.5;
+}
+
+.ai-inline-code {
+  background: var(--surface-4);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 12px;
 }
 
 /* Input area */
@@ -1996,15 +2093,15 @@ html.theme-transitioning *::after {
 }
 
 .ai-input:focus {
-  border-color: var(--accent);
+  border-color: var(--accent-primary);
 }
 
 .ai-input::placeholder {
-  color: var(--text-muted);
+  color: var(--text-ghost);
 }
 
 .ai-send-btn {
-  background: var(--accent);
+  background: var(--accent-primary);
   color: #fff;
   border: none;
   border-radius: var(--radius-sm);
@@ -2017,7 +2114,7 @@ html.theme-transitioning *::after {
 }
 
 .ai-send-btn:hover:not(:disabled) {
-  background: var(--accent-hover);
+  background: var(--accent-primary-hover);
 }
 
 .ai-send-btn:disabled,

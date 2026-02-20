@@ -2,6 +2,7 @@ import { t } from '../i18n/index';
 import * as store from '../model/store';
 import { parseTmdlFiles } from '../model/tmdl-parser';
 import { parseJsonModel } from '../model/json-parser';
+import { restoreDefaultModel } from '../model/default-model';
 import type { EditorAdapter } from '../editor/editor-interface';
 
 export class ModelBrowserPanel {
@@ -93,20 +94,29 @@ export class ModelBrowserPanel {
       `;
     }
 
+    const isDefault = store.isDefaultModel();
+    const defaultBadge = isDefault
+      ? `<span class="mb-default-badge">${esc(t('mb.default_model'))}</span>`
+      : '';
+    const clearBtnLabel = isDefault
+      ? ''
+      : `<button class="mb-clear-btn" id="mb-clear-btn">${esc(t('mb.clear_model'))}</button>`;
+
     this.container.innerHTML = `
       <div class="mb-upload-zone mb-upload-compact" id="mb-drop-zone">
-        <p class="mb-upload-text-small">${esc(t('mb.upload_text'))}</p>
+        <p class="mb-upload-text-small">${isDefault ? esc(t('mb.upload_to_replace')) : esc(t('mb.upload_text'))}</p>
         <input type="file" id="mb-file-input" multiple accept=".tmdl,.json" style="display:none" />
         <input type="file" id="mb-folder-input" webkitdirectory style="display:none" />
       </div>
       <div class="mb-model-info">
+        ${defaultBadge}
         <span class="mb-model-stats">${t('mb.model_loaded', {
           tables: stats.tables,
           columns: stats.columns,
           measures: stats.measures,
           relationships: stats.relationships,
         })}</span>
-        <button class="mb-clear-btn" id="mb-clear-btn">${esc(t('mb.clear_model'))}</button>
+        ${clearBtnLabel}
       </div>
       <div class="mb-tree">${treeHtml}</div>
     `;
@@ -197,7 +207,7 @@ export class ModelBrowserPanel {
 
   private attachClearHandler(): void {
     const clearBtn = document.getElementById('mb-clear-btn');
-    clearBtn?.addEventListener('click', () => store.clearModel());
+    clearBtn?.addEventListener('click', () => restoreDefaultModel());
   }
 
   private async handleFiles(fileList: FileList): Promise<void> {

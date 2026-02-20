@@ -5,6 +5,7 @@ import { BestPracticesPanel } from './panels/best-practices';
 import { ModelBrowserPanel } from './panels/model-browser';
 import { ExpressionLibraryPanel } from './panels/expression-library';
 import { AIAssistantPanel } from './panels/ai-assistant';
+import { loadDefaultModel } from './model/default-model';
 import { detectLocale, setLocale, getLocale, applyTranslations, t } from './i18n/index';
 import type { Locale } from './i18n/index';
 import './styles/main.css';
@@ -86,6 +87,9 @@ onLocaleChangeCallbacks.push(
   () => diagnosticsPanel.refresh(),
   () => aiAssistantPanel.render(),
 );
+
+// Load the default model so the editor has schema context out of the box
+loadDefaultModel();
 
 // Apply translations to data-i18n elements
 applyTranslations();

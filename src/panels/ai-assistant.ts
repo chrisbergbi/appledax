@@ -1,6 +1,6 @@
 import { t } from '../i18n/index';
 import type { EditorAdapter } from '../editor/editor-interface';
-import { isPuterLoaded, isPuterSignedIn, signIn, chat } from '../ai/provider';
+import { isPuterLoaded, isPuterSignedIn, signIn, chatStream } from '../ai/provider';
 import type { ChatMessage } from '../ai/provider';
 import { buildSystemPrompt } from '../ai/context';
 
@@ -20,6 +20,54 @@ interface UIMessage {
   content: string;
 }
 
+/* ── Markdown-like formatter ─────────────────────────────── */
+
+function formatMarkdown(raw: string): string {
+  let html = esc(raw);
+
+  // Code blocks: ```lang\n...\n```
+  html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, (_match, _lang, code) => {
+    const trimmedCode = code.trim();
+    // Decode entities back for the data attribute (will be re-escaped by esc())
+    const decoded = trimmedCode
+      .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+    return `<pre class="ai-code-block"><code>${trimmedCode}</code></pre>` +
+      `<button class="ai-insert-btn" data-code="${esc(decoded)}">${esc(t('ai.insert'))}</button>`;
+  });
+
+  // Inline code: `...`
+  html = html.replace(/`([^`]+)`/g, '<code class="ai-inline-code">$1</code>');
+
+  // Bold: **text**
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
+  // Headers at line start: ### or ##
+  html = html.replace(/^### (.+)$/gm, '<h4 class="ai-h4">$1</h4>');
+  html = html.replace(/^## (.+)$/gm, '<h3 class="ai-h3">$1</h3>');
+
+  // Bullet lists: - item or * item
+  html = html.replace(/^[-*] (.+)$/gm, '<li class="ai-li">$1</li>');
+
+  // Numbered lists: 1. item
+  html = html.replace(/^\d+\. (.+)$/gm, '<li class="ai-li">$1</li>');
+
+  // Wrap consecutive <li> in <ul>
+  html = html.replace(/((?:<li class="ai-li">[\s\S]*?<\/li>\s*)+)/g, '<ul class="ai-list">$1</ul>');
+
+  // Line breaks
+  html = html.replace(/\n/g, '<br>');
+
+  // Clean up <br> after block elements
+  html = html.replace(/<\/pre><br>/g, '</pre>');
+  html = html.replace(/<\/h[34]><br>/g, (m) => m.replace('<br>', ''));
+  html = html.replace(/<\/ul><br>/g, '</ul>');
+  html = html.replace(/<\/li><br>/g, '</li>');
+  html = html.replace(/<br><ul/g, '<ul');
+
+  return html;
+}
+
 /* ── Panel class ────────────────────────────────────────── */
 
 export class AIAssistantPanel {
@@ -27,6 +75,7 @@ export class AIAssistantPanel {
   private editor: EditorAdapter;
   private messages: UIMessage[] = [];
   private isLoading = false;
+  private streamingContent = '';
 
   constructor(editor: EditorAdapter) {
     this.container = document.getElementById('ai-assistant-panel')!;
@@ -35,19 +84,14 @@ export class AIAssistantPanel {
   }
 
   public render(): void {
-    // Not loaded: show unavailable message
     if (!isPuterLoaded()) {
       this.renderUnavailable();
       return;
     }
-
-    // Not signed in: show sign-in prompt
     if (!isPuterSignedIn()) {
       this.renderSignIn();
       return;
     }
-
-    // Signed in: show chat
     this.renderChat();
   }
 
@@ -79,7 +123,7 @@ export class AIAssistantPanel {
         await signIn();
         this.render();
       } catch {
-        // User cancelled or error — stay on sign-in screen
+        // User cancelled or error
       }
     });
   }
@@ -87,7 +131,7 @@ export class AIAssistantPanel {
   private renderChat(): void {
     let messagesHtml = '';
 
-    if (this.messages.length === 0) {
+    if (this.messages.length === 0 && !this.isLoading) {
       messagesHtml = `
         <div class="ai-welcome">
           <p>${esc(t('ai.welcome'))}</p>
@@ -101,17 +145,26 @@ export class AIAssistantPanel {
     } else {
       messagesHtml = this.messages.map((msg) => {
         const roleClass = msg.role === 'user' ? 'ai-msg-user' : 'ai-msg-assistant';
-        const content = this.formatContent(msg.content);
+        const content = msg.role === 'assistant' ? formatMarkdown(msg.content) : esc(msg.content);
         return `<div class="ai-msg ${roleClass}">${content}</div>`;
       }).join('');
     }
 
+    // Streaming indicator
     const loadingHtml = this.isLoading
-      ? `<div class="ai-msg ai-msg-assistant ai-loading"><span class="ai-dots">&#8226;&#8226;&#8226;</span></div>`
+      ? this.streamingContent
+        ? `<div class="ai-msg ai-msg-assistant ai-streaming">${formatMarkdown(this.streamingContent)}<span class="ai-cursor">&#9646;</span></div>`
+        : `<div class="ai-msg ai-msg-assistant ai-loading"><span class="ai-dots">&#8226;&#8226;&#8226;</span></div>`
+      : '';
+
+    const hasHistory = this.messages.length > 0;
+    const clearBtnHtml = hasHistory && !this.isLoading
+      ? `<button class="ai-clear-btn" id="ai-clear-btn" title="${esc(t('ai.new_chat'))}">${esc(t('ai.new_chat'))}</button>`
       : '';
 
     this.container.innerHTML = `
       <div class="ai-chat">
+        ${clearBtnHtml ? `<div class="ai-chat-header">${clearBtnHtml}</div>` : ''}
         <div class="ai-messages" id="ai-messages">
           ${messagesHtml}
           ${loadingHtml}
@@ -127,32 +180,12 @@ export class AIAssistantPanel {
     this.scrollToBottom();
   }
 
-  /* ── Format assistant content ─────────────────────────── */
-
-  private formatContent(content: string): string {
-    // Simple markdown-like formatting: code blocks and inline code
-    let html = esc(content);
-
-    // Code blocks: ```...```
-    html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, (_match, _lang, code) => {
-      return `<pre class="ai-code-block"><code>${code.trim()}</code></pre>
-        <button class="ai-insert-btn" data-code="${esc(code.trim())}">${esc(t('ai.insert'))}</button>`;
-    });
-
-    // Inline code: `...`
-    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-
-    // Line breaks
-    html = html.replace(/\n/g, '<br>');
-
-    return html;
-  }
-
   /* ── Event handlers ───────────────────────────────────── */
 
   private attachChatHandlers(): void {
     const input = document.getElementById('ai-input') as HTMLTextAreaElement | null;
     const sendBtn = document.getElementById('ai-send-btn');
+    const clearBtn = document.getElementById('ai-clear-btn');
 
     const sendMessage = () => {
       const text = input?.value.trim();
@@ -166,6 +199,14 @@ export class AIAssistantPanel {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         sendMessage();
+      }
+    });
+
+    // Auto-resize textarea
+    input?.addEventListener('input', () => {
+      if (input) {
+        input.style.height = 'auto';
+        input.style.height = Math.min(input.scrollHeight, 120) + 'px';
       }
     });
 
@@ -193,34 +234,81 @@ export class AIAssistantPanel {
       });
     });
 
-    // Focus input
+    // Clear/new chat button
+    clearBtn?.addEventListener('click', () => {
+      this.messages = [];
+      this.streamingContent = '';
+      this.isLoading = false;
+      this.render();
+    });
+
     input?.focus();
   }
 
-  /* ── Send message ─────────────────────────────────────── */
+  /* ── Send message with streaming ───────────────────────── */
 
   private async handleSend(text: string): Promise<void> {
     this.messages.push({ role: 'user', content: text });
     this.isLoading = true;
+    this.streamingContent = '';
     this.render();
 
     try {
-      // Build conversation with system prompt + history
       const systemPrompt = buildSystemPrompt(this.editor);
       const apiMessages: ChatMessage[] = [
         { role: 'system', content: systemPrompt },
         ...this.messages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
       ];
 
-      const reply = await chat(apiMessages);
-      this.messages.push({ role: 'assistant', content: reply });
+      const fullResponse = await chatStream(apiMessages, (chunk) => {
+        this.streamingContent += chunk;
+        this.updateStreamingMessage();
+      });
+
+      this.messages.push({ role: 'assistant', content: fullResponse });
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       this.messages.push({ role: 'assistant', content: `${t('ai.error')}: ${errorMsg}` });
     }
 
     this.isLoading = false;
+    this.streamingContent = '';
     this.render();
+  }
+
+  /**
+   * Update just the streaming message area without full re-render.
+   * Avoids flickering and losing scroll position during streaming.
+   */
+  private updateStreamingMessage(): void {
+    const msgContainer = document.getElementById('ai-messages');
+    if (!msgContainer) return;
+
+    let streamEl = msgContainer.querySelector('.ai-streaming') as HTMLElement | null;
+    if (!streamEl) {
+      // Remove loading dots if present
+      const loadingEl = msgContainer.querySelector('.ai-loading');
+      if (loadingEl) loadingEl.remove();
+
+      streamEl = document.createElement('div');
+      streamEl.className = 'ai-msg ai-msg-assistant ai-streaming';
+      msgContainer.appendChild(streamEl);
+    }
+
+    streamEl.innerHTML = formatMarkdown(this.streamingContent) + '<span class="ai-cursor">&#9646;</span>';
+
+    // Re-attach insert buttons
+    streamEl.querySelectorAll<HTMLButtonElement>('.ai-insert-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const code = btn.dataset.code;
+        if (code) {
+          this.editor.insertAtCursor(code);
+          this.editor.focus();
+        }
+      });
+    });
+
+    this.scrollToBottom();
   }
 
   /* ── Helpers ──────────────────────────────────────────── */

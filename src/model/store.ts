@@ -9,6 +9,7 @@ export interface RelatedTableInfo {
 }
 
 let model: DataModel | null = null;
+let _isDefault = false;
 let tableMap = new Map<string, ModelTable>();
 let relationshipsByTable = new Map<string, RelatedTableInfo[]>();
 const listeners: Array<(model: DataModel | null) => void> = [];
@@ -54,14 +55,23 @@ export function getModel(): DataModel | null {
   return model;
 }
 
-export function setModel(newModel: DataModel): void {
+export function setModel(newModel: DataModel, isDefault = false): void {
   model = newModel;
+  _isDefault = isDefault;
   buildMaps();
   notify();
 }
 
+/**
+ * Returns true if the currently loaded model is the built-in default.
+ */
+export function isDefaultModel(): boolean {
+  return _isDefault;
+}
+
 export function clearModel(): void {
   model = null;
+  _isDefault = false;
   tableMap.clear();
   relationshipsByTable.clear();
   notify();

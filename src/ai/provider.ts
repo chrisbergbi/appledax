@@ -13,8 +13,8 @@ declare global {
       ai: {
         chat(
           prompt: string | Array<{ role: string; content: string }>,
-          options?: { model?: string },
-        ): Promise<{ message: { content: string } }>;
+          options?: { model?: string; stream?: boolean },
+        ): Promise<{ message: { content: string } }> | AsyncIterable<{ text?: string }>;
       };
       auth: {
         signIn(): Promise<void>;
@@ -62,6 +62,49 @@ export async function chat(messages: ChatMessage[]): Promise<string> {
     throw new Error('Puter.js is not loaded');
   }
 
-  const response = await window.puter!.ai.chat(messages, { model: MODEL });
+  const response = await window.puter!.ai.chat(messages, { model: MODEL }) as { message: { content: string } };
   return response?.message?.content ?? '';
+}
+
+/**
+ * Send a streaming chat completion request through Puter.js.
+ * Calls onChunk with each piece of text as it arrives.
+ * Returns the full response when complete.
+ */
+export async function chatStream(
+  messages: ChatMessage[],
+  onChunk: (text: string) => void,
+): Promise<string> {
+  if (!isPuterLoaded()) {
+    throw new Error('Puter.js is not loaded');
+  }
+
+  try {
+    const stream = window.puter!.ai.chat(messages, { model: MODEL, stream: true });
+
+    // If it returns an async iterable, iterate over chunks
+    if (stream && typeof stream === 'object' && Symbol.asyncIterator in (stream as object)) {
+      let fullText = '';
+      for await (const chunk of stream as AsyncIterable<{ text?: string }>) {
+        const text = chunk?.text ?? '';
+        if (text) {
+          fullText += text;
+          onChunk(text);
+        }
+      }
+      return fullText;
+    }
+
+    // Fallback: non-streaming response
+    const response = await (stream as Promise<{ message: { content: string } }>);
+    const content = response?.message?.content ?? '';
+    onChunk(content);
+    return content;
+  } catch (err) {
+    // If streaming fails, fall back to non-streaming
+    const response = await window.puter!.ai.chat(messages, { model: MODEL }) as { message: { content: string } };
+    const content = response?.message?.content ?? '';
+    onChunk(content);
+    return content;
+  }
 }

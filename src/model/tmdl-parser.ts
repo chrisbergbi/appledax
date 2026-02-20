@@ -314,17 +314,21 @@ function parseRelationshipsTmdl(content: string): ModelRelationship[] {
 
     if (!currentRel) continue;
 
-    // fromColumn / toColumn in format: 'Table'.Column or 'Table'[Column]
-    const colMatch = trimmed.match(/^(fromColumn|toColumn)\s*:\s*'([^']+)'(?:\.(\w+)|\[([^\]]+)\])/i);
-    if (colMatch) {
-      const [, prop, tableName, dotCol, bracketCol] = colMatch;
-      const colName = dotCol || bracketCol;
-      if (prop.toLowerCase() === 'fromcolumn') {
-        currentRel.fromTable = tableName;
-        currentRel.fromColumn = colName;
-      } else {
-        currentRel.toTable = tableName;
-        currentRel.toColumn = colName;
+    // fromColumn / toColumn — supports these formats:
+    //   'Table Name'.Column   'Table Name'[Column]   'Table Name'.'Column Name'
+    //   TableName.Column      TableName.'Column Name'   TableName[Column]
+    const fromToMatch = trimmed.match(/^(fromColumn|toColumn)\s*:\s*(.+)$/i);
+    if (fromToMatch) {
+      const [, prop, rawValue] = fromToMatch;
+      const ref = parseColumnRef(rawValue.trim());
+      if (ref) {
+        if (prop.toLowerCase() === 'fromcolumn') {
+          currentRel.fromTable = ref.table;
+          currentRel.fromColumn = ref.column;
+        } else {
+          currentRel.toTable = ref.table;
+          currentRel.toColumn = ref.column;
+        }
       }
       continue;
     }
@@ -385,6 +389,62 @@ function mergeTables(allTables: ModelTable[]): ModelTable[] {
   }
 
   return Array.from(map.values());
+}
+
+/**
+ * Parse a column reference in various TMDL formats:
+ *   'Table Name'.Column   'Table Name'[Column]   'Table Name'.'Column Name'
+ *   TableName.Column      TableName.'Column Name' TableName[Column]
+ */
+function parseColumnRef(value: string): { table: string; column: string } | null {
+  const v = value.trim();
+  let tableName: string;
+  let colName: string;
+
+  if (v.startsWith("'")) {
+    // Quoted table name
+    const endQuote = v.indexOf("'", 1);
+    if (endQuote === -1) return null;
+    tableName = v.slice(1, endQuote);
+    const rest = v.slice(endQuote + 1);
+
+    if (rest.startsWith('.')) {
+      const colPart = rest.slice(1).trim();
+      if (colPart.startsWith("'")) {
+        const colEnd = colPart.indexOf("'", 1);
+        colName = colEnd !== -1 ? colPart.slice(1, colEnd) : colPart.slice(1);
+      } else {
+        colName = colPart;
+      }
+    } else if (rest.startsWith('[')) {
+      const bracketEnd = rest.indexOf(']');
+      colName = bracketEnd !== -1 ? rest.slice(1, bracketEnd) : rest.slice(1);
+    } else {
+      return null;
+    }
+  } else {
+    // Unquoted table name: TableName.Column or TableName.'Column' or TableName[Column]
+    const bracketIdx = v.indexOf('[');
+    const dotIdx = v.indexOf('.');
+    if (bracketIdx !== -1 && (dotIdx === -1 || bracketIdx < dotIdx)) {
+      tableName = v.slice(0, bracketIdx);
+      const bracketEnd = v.indexOf(']', bracketIdx);
+      colName = bracketEnd !== -1 ? v.slice(bracketIdx + 1, bracketEnd) : v.slice(bracketIdx + 1);
+    } else if (dotIdx !== -1) {
+      tableName = v.slice(0, dotIdx);
+      const colPart = v.slice(dotIdx + 1).trim();
+      if (colPart.startsWith("'")) {
+        const colEnd = colPart.indexOf("'", 1);
+        colName = colEnd !== -1 ? colPart.slice(1, colEnd) : colPart.slice(1);
+      } else {
+        colName = colPart;
+      }
+    } else {
+      return null;
+    }
+  }
+
+  return tableName && colName ? { table: tableName, column: colName } : null;
 }
 
 function getIndentLevel(line: string): number {
