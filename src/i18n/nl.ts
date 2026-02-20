@@ -6,6 +6,7 @@ export const nl: Record<string, string> = {
   'app.btn_copy': 'Kopieer',
   'app.btn_copy_title': 'Opgemaakte DAX kopiëren',
   'app.copied': 'Gekopieerd!',
+  'app.btn_lang_title': 'Taal wisselen',
 
   // Statusbalk
   'status.all_good': 'Alles goed \u2014 geen problemen gevonden',

@@ -16,7 +16,7 @@ export class ModelBrowserPanel {
     this.render();
   }
 
-  private render(): void {
+  public render(): void {
     const model = store.getModel();
 
     if (!model) {

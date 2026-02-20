@@ -6,6 +6,7 @@ export const en: Record<string, string> = {
   'app.btn_copy': 'Copy',
   'app.btn_copy_title': 'Copy formatted DAX',
   'app.copied': 'Copied!',
+  'app.btn_lang_title': 'Switch language',
 
   // Status bar
   'status.all_good': 'All good \u2014 no issues found',

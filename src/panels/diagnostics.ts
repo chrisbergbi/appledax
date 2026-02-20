@@ -64,6 +64,11 @@ export class DiagnosticsPanel {
     }
   }
 
+  public refresh(): void {
+    this.render();
+    this.updateStatusBar();
+  }
+
   private render(): void {
     const filtered = this.currentFilter === 'all'
       ? this.diagnostics

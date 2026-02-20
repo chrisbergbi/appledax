@@ -8,7 +8,7 @@ export class BestPracticesPanel {
     this.render();
   }
 
-  private render(): void {
+  public render(): void {
     this.container.innerHTML = `
       <div class="bp-section">
         <h3>${t('bp.performance')}</h3>

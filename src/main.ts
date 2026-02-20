@@ -4,11 +4,13 @@ import { FunctionHelpPanel } from './panels/function-help';
 import { BestPracticesPanel } from './panels/best-practices';
 import { ModelBrowserPanel } from './panels/model-browser';
 import { ExpressionLibraryPanel } from './panels/expression-library';
-import { setLocale, applyTranslations, t } from './i18n/index';
+import { detectLocale, setLocale, getLocale, applyTranslations, t } from './i18n/index';
+import type { Locale } from './i18n/index';
 import './styles/main.css';
 
-// Initialize i18n (Dutch by default)
-setLocale('nl');
+// Initialize i18n (detect from saved preference → browser language → 'en')
+const initialLocale = detectLocale();
+setLocale(initialLocale);
 
 // Theme: restore saved preference
 const THEME_KEY = 'appledax-theme';
@@ -48,12 +50,39 @@ themeBtn?.addEventListener('click', () => {
   applyTheme(current === 'light' ? 'dark' : 'light');
 });
 
+/* ── Language toggle ────────────────────────────────── */
+const LOCALE_LABELS: Record<Locale, string> = { nl: 'NL', en: 'EN' };
+const langBtn = document.getElementById('btn-lang');
+
+function updateLangButton(): void {
+  if (langBtn) langBtn.textContent = LOCALE_LABELS[getLocale()] ?? 'EN';
+}
+updateLangButton();
+
+// Re-render callback list — panels register here to refresh on locale change
+const onLocaleChangeCallbacks: Array<() => void> = [];
+
+langBtn?.addEventListener('click', () => {
+  const next: Locale = getLocale() === 'nl' ? 'en' : 'nl';
+  setLocale(next);
+  updateLangButton();
+  applyTranslations();
+  for (const cb of onLocaleChangeCallbacks) cb();
+});
+
 // Initialize panels
-new DiagnosticsPanel(editor);
+const diagnosticsPanel = new DiagnosticsPanel(editor);
 new FunctionHelpPanel(editor);
-new BestPracticesPanel();
-new ModelBrowserPanel(editor);
+const bestPracticesPanel = new BestPracticesPanel();
+const modelBrowserPanel = new ModelBrowserPanel(editor);
 const expressionLibrary = new ExpressionLibraryPanel(editor);
+
+// Register panels for locale change re-rendering
+onLocaleChangeCallbacks.push(
+  () => bestPracticesPanel.render(),
+  () => modelBrowserPanel.render(),
+  () => diagnosticsPanel.refresh(),
+);
 
 // Apply translations to data-i18n elements
 applyTranslations();
