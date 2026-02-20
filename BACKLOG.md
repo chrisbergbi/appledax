@@ -65,6 +65,14 @@ Items are roughly ordered by priority within each category.
 
 ---
 
+## Internationalization
+
+- [ ] **Support Spanish locale**
+  Add `src/i18n/es.ts` with Spanish translations for all UI strings, diagnostics, function help, and best practices. Register `'es'` in the `SUPPORTED_LOCALES` array in `src/i18n/index.ts`, update the `Locale` type, and extend the language toggle button to cycle through NL/EN/ES.
+  `Effort: Medium`
+
+---
+
 ## Completed
 
 - [x] **Detect browser locale + language switcher**

@@ -17,6 +17,7 @@ export const nl: Record<string, string> = {
   'drawer.model': 'Model',
   'drawer.saved': 'Opgeslagen',
   'drawer.tips': 'Tips',
+  'drawer.ai': 'AI',
 
   // Welkomstscherm
   'welcome.title': 'Schrijf je eerste DAX-expressie',
@@ -223,4 +224,23 @@ export const nl: Record<string, string> = {
   'el.import_progress': '{current} van {total} rijen verwerkt...',
   'el.import_saving': 'Opslaan...',
   'el.more_items': '... en nog {count} meer',
+
+  // AI Assistent
+  'ai.unavailable': 'AI-assistent kon niet worden geladen.',
+  'ai.unavailable_hint': 'Het Puter.js-script kon niet worden geladen. Controleer je internetverbinding of vernieuw de pagina.',
+  'ai.signin_title': 'DAX AI-assistent',
+  'ai.signin_desc': 'Log in met een gratis Puter-account voor AI-gestuurde DAX-hulp. De assistent kan je code en geladen datamodel zien voor contextbewuste antwoorden.',
+  'ai.signin_btn': 'Inloggen met Puter',
+  'ai.privacy_note': 'Je DAX-code en modelschema worden naar Puter/OpenAI gestuurd voor verwerking.',
+  'ai.welcome': 'Stel me een vraag over DAX! Ik kan je huidige code en datamodel zien.',
+  'ai.suggest_explain': 'Leg mijn code uit',
+  'ai.suggest_optimize': 'Optimaliseer deze measure',
+  'ai.suggest_fix': 'Los de problemen op',
+  'ai.placeholder': 'Stel een DAX-vraag...',
+  'ai.send': 'Verstuur',
+  'ai.insert': 'In editor invoegen',
+  'ai.error': 'Fout',
+  'ai.prompt_explain': 'Leg stap voor stap uit wat de huidige DAX-code in de editor doet.',
+  'ai.prompt_optimize': 'Stel prestatieoptimalisaties voor voor de huidige DAX-code.',
+  'ai.prompt_fix': 'Los de problemen op die in de diagnostiek zijn geïdentificeerd en leg uit wat er mis was.',
 };

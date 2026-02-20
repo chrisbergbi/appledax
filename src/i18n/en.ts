@@ -17,6 +17,7 @@ export const en: Record<string, string> = {
   'drawer.model': 'Model',
   'drawer.saved': 'Saved',
   'drawer.tips': 'Tips',
+  'drawer.ai': 'AI',
 
   // Welcome overlay
   'welcome.title': 'Write your first DAX expression',
@@ -223,4 +224,23 @@ export const en: Record<string, string> = {
   'el.import_progress': '{current} of {total} rows processed...',
   'el.import_saving': 'Saving...',
   'el.more_items': '... and {count} more',
+
+  // AI Assistant
+  'ai.unavailable': 'AI assistant could not be loaded.',
+  'ai.unavailable_hint': 'The Puter.js script failed to load. Check your internet connection or try refreshing.',
+  'ai.signin_title': 'DAX AI Assistant',
+  'ai.signin_desc': 'Sign in with a free Puter account to get AI-powered DAX help. The assistant can see your code and loaded data model for context-aware answers.',
+  'ai.signin_btn': 'Sign in with Puter',
+  'ai.privacy_note': 'Your DAX code and model schema are sent to Puter/OpenAI for processing.',
+  'ai.welcome': 'Ask me anything about DAX! I can see your current code and data model.',
+  'ai.suggest_explain': 'Explain my code',
+  'ai.suggest_optimize': 'Optimize this measure',
+  'ai.suggest_fix': 'Fix the issues',
+  'ai.placeholder': 'Ask a DAX question...',
+  'ai.send': 'Send',
+  'ai.insert': 'Insert into editor',
+  'ai.error': 'Error',
+  'ai.prompt_explain': 'Explain what the current DAX code in the editor does, step by step.',
+  'ai.prompt_optimize': 'Suggest performance optimizations for the current DAX code.',
+  'ai.prompt_fix': 'Fix the issues identified in the diagnostics and explain what was wrong.',
 };

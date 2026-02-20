@@ -4,6 +4,7 @@ import { FunctionHelpPanel } from './panels/function-help';
 import { BestPracticesPanel } from './panels/best-practices';
 import { ModelBrowserPanel } from './panels/model-browser';
 import { ExpressionLibraryPanel } from './panels/expression-library';
+import { AIAssistantPanel } from './panels/ai-assistant';
 import { detectLocale, setLocale, getLocale, applyTranslations, t } from './i18n/index';
 import type { Locale } from './i18n/index';
 import './styles/main.css';
@@ -76,12 +77,14 @@ new FunctionHelpPanel(editor);
 const bestPracticesPanel = new BestPracticesPanel();
 const modelBrowserPanel = new ModelBrowserPanel(editor);
 const expressionLibrary = new ExpressionLibraryPanel(editor);
+const aiAssistantPanel = new AIAssistantPanel(editor);
 
 // Register panels for locale change re-rendering
 onLocaleChangeCallbacks.push(
   () => bestPracticesPanel.render(),
   () => modelBrowserPanel.render(),
   () => diagnosticsPanel.refresh(),
+  () => aiAssistantPanel.render(),
 );
 
 // Apply translations to data-i18n elements
