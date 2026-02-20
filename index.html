@@ -7,6 +7,7 @@
 </head>
 <body>
   <div id="app">
+    <!-- Toolbar -->
     <header id="toolbar">
       <h1 data-i18n="app.title">APPLEDAX</h1>
       <div id="toolbar-actions">
@@ -15,42 +16,81 @@
         <button id="btn-theme" title="Thema wisselen">&#9790;</button>
       </div>
     </header>
-    <main id="workspace">
+
+    <!-- Editor (full width) -->
+    <main id="editor-area">
       <div id="editor-pane"></div>
-      <div id="side-panel">
-        <div id="side-tabs">
-          <button class="tab active" data-panel="function-help" data-i18n="tab.function_help">Functiehulp</button>
-          <button class="tab" data-panel="best-practices" data-i18n="tab.best_practices">Best practices</button>
-          <button class="tab" data-panel="model-browser" data-i18n="tab.model_browser">Model Browser</button>
-          <button class="tab" data-panel="expression-library" data-i18n="tab.expression_library">Opgeslagen</button>
-        </div>
-        <div id="side-content">
-          <div id="function-help-panel" class="panel-content active"></div>
-          <div id="best-practices-panel" class="panel-content"></div>
-          <div id="model-browser-panel" class="panel-content"></div>
-          <div id="expression-library-panel" class="panel-content"></div>
-        </div>
-      </div>
     </main>
-    <footer id="diagnostics-pane">
-      <div id="diagnostics-header">
-        <div id="diagnostics-tabs">
-          <button class="diag-tab active" data-severity="all">
-            <span data-i18n="diag.all">Alles</span> <span class="badge" id="badge-all">0</span>
-          </button>
-          <button class="diag-tab" data-severity="error">
-            <span data-i18n="diag.errors">Fouten</span> <span class="badge error" id="badge-errors">0</span>
-          </button>
-          <button class="diag-tab" data-severity="warning">
-            <span data-i18n="diag.warnings">Waarschuwingen</span> <span class="badge warning" id="badge-warnings">0</span>
-          </button>
-          <button class="diag-tab" data-severity="info">
-            <span data-i18n="diag.info">Info</span> <span class="badge info" id="badge-info">0</span>
-          </button>
-        </div>
+
+    <!-- Status bar (compact suggestion count) -->
+    <div id="status-bar">
+      <span id="status-text" data-i18n="status.all_good">Geen problemen gevonden</span>
+      <span id="status-toggle" title="Details">&#9660;</span>
+    </div>
+
+    <!-- Diagnostics dropdown (hidden by default) -->
+    <div id="diagnostics-dropdown" class="hidden">
+      <div id="diagnostics-tabs">
+        <button class="diag-tab active" data-severity="all">
+          <span data-i18n="diag.all">Alles</span> <span class="badge" id="badge-all">0</span>
+        </button>
+        <button class="diag-tab" data-severity="error">
+          <span data-i18n="diag.errors">Fouten</span> <span class="badge error" id="badge-errors">0</span>
+        </button>
+        <button class="diag-tab" data-severity="warning">
+          <span data-i18n="diag.warnings">Waarschuwingen</span> <span class="badge warning" id="badge-warnings">0</span>
+        </button>
+        <button class="diag-tab" data-severity="info">
+          <span data-i18n="diag.info">Info</span> <span class="badge info" id="badge-info">0</span>
+        </button>
       </div>
       <div id="diagnostics-list"></div>
-    </footer>
+    </div>
+
+    <!-- Bottom drawer tab bar -->
+    <nav id="drawer-tabs">
+      <button class="drawer-tab" data-drawer="function-help" data-i18n="drawer.help">Hulp</button>
+      <button class="drawer-tab" data-drawer="model-browser" data-i18n="drawer.model">Model</button>
+      <button class="drawer-tab" data-drawer="expression-library" data-i18n="drawer.saved">Opgeslagen</button>
+      <button class="drawer-tab" data-drawer="best-practices" data-i18n="drawer.tips">Tips</button>
+    </nav>
+
+    <!-- Bottom drawer (collapsible) -->
+    <div id="drawer" class="collapsed">
+      <div id="drawer-handle"></div>
+      <div id="drawer-content">
+        <div id="function-help-panel" class="drawer-panel"></div>
+        <div id="best-practices-panel" class="drawer-panel"></div>
+        <div id="model-browser-panel" class="drawer-panel"></div>
+        <div id="expression-library-panel" class="drawer-panel"></div>
+      </div>
+    </div>
+
+    <!-- Welcome overlay (first visit) -->
+    <div id="welcome-overlay" class="hidden">
+      <div id="welcome-card">
+        <h2 data-i18n="welcome.title">Schrijf je eerste DAX-expressie</h2>
+        <p data-i18n="welcome.subtitle">Kies een template om te beginnen, of begin met typen in de editor.</p>
+        <div id="welcome-templates">
+          <button class="welcome-template" data-template="simple">
+            <span class="welcome-template-icon">fx</span>
+            <span class="welcome-template-title" data-i18n="welcome.template_simple">Eenvoudige Measure</span>
+            <span class="welcome-template-desc" data-i18n="welcome.template_simple_desc">SUM, AVERAGE, COUNT</span>
+          </button>
+          <button class="welcome-template" data-template="yoy">
+            <span class="welcome-template-icon">&#128200;</span>
+            <span class="welcome-template-title" data-i18n="welcome.template_yoy">Year-over-Year</span>
+            <span class="welcome-template-desc" data-i18n="welcome.template_yoy_desc">Vergelijk met vorig jaar</span>
+          </button>
+          <button class="welcome-template" data-template="calculate">
+            <span class="welcome-template-icon">&#9881;</span>
+            <span class="welcome-template-title" data-i18n="welcome.template_calculate">CALCULATE Patroon</span>
+            <span class="welcome-template-desc" data-i18n="welcome.template_calculate_desc">Filter context wijzigen</span>
+          </button>
+        </div>
+        <button id="welcome-dismiss" data-i18n="welcome.dismiss">Overslaan &mdash; begin met lege editor</button>
+      </div>
+    </div>
   </div>
   <script type="module" src="/src/main.ts"></script>
 </body>

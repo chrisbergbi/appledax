@@ -14,15 +14,18 @@ export class DiagnosticsPanel {
   private editor: EditorAdapter;
   private currentFilter = 'all';
   private diagnostics: LintDiagnostic[] = [];
+  private statusText: HTMLElement | null;
 
   constructor(editor: EditorAdapter) {
     this.container = document.getElementById('diagnostics-list')!;
     this.editor = editor;
+    this.statusText = document.getElementById('status-text');
 
     onDiagnosticsChanged((diags) => {
       this.diagnostics = diags;
       this.render();
       this.updateBadges();
+      this.updateStatusBar();
     });
 
     // Tab click handling
@@ -34,6 +37,31 @@ export class DiagnosticsPanel {
         this.render();
       });
     });
+  }
+
+  private updateStatusBar(): void {
+    if (!this.statusText) return;
+
+    const total = this.diagnostics.length;
+    let errors = 0;
+
+    for (const d of this.diagnostics) {
+      if (d.severity === 'error') errors++;
+    }
+
+    // Remove all status classes
+    this.statusText.classList.remove('status-clean', 'status-has-issues', 'status-has-errors');
+
+    if (total === 0) {
+      this.statusText.textContent = t('status.all_good');
+      this.statusText.classList.add('status-clean');
+    } else if (errors > 0) {
+      this.statusText.textContent = t('status.suggestions', { count: total });
+      this.statusText.classList.add('status-has-errors');
+    } else {
+      this.statusText.textContent = t('status.suggestions', { count: total });
+      this.statusText.classList.add('status-has-issues');
+    }
   }
 
   private render(): void {
@@ -69,14 +97,9 @@ export class DiagnosticsPanel {
       location.className = 'diag-location';
       location.textContent = t('diag.location', { line: diag.startLine, col: diag.startCol });
 
-      const rule = document.createElement('span');
-      rule.className = 'diag-rule';
-      rule.textContent = diag.ruleId;
-
       row.appendChild(icon);
       row.appendChild(message);
       row.appendChild(location);
-      row.appendChild(rule);
 
       row.addEventListener('click', () => {
         this.editor.setCursorPosition(diag.startLine, diag.startCol);

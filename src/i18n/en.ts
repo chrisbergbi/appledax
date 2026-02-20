@@ -7,7 +7,28 @@ export const en: Record<string, string> = {
   'app.btn_copy_title': 'Copy formatted DAX',
   'app.copied': 'Copied!',
 
-  // Side panel tabs
+  // Status bar
+  'status.all_good': 'All good \u2014 no issues found',
+  'status.suggestions': '{count} suggestions',
+
+  // Drawer tabs
+  'drawer.help': 'Help',
+  'drawer.model': 'Model',
+  'drawer.saved': 'Saved',
+  'drawer.tips': 'Tips',
+
+  // Welcome overlay
+  'welcome.title': 'Write your first DAX expression',
+  'welcome.subtitle': 'Pick a template to get started, or just start typing in the editor.',
+  'welcome.template_simple': 'Simple Measure',
+  'welcome.template_simple_desc': 'SUM, AVERAGE, COUNT',
+  'welcome.template_yoy': 'Year-over-Year',
+  'welcome.template_yoy_desc': 'Compare with last year',
+  'welcome.template_calculate': 'CALCULATE Pattern',
+  'welcome.template_calculate_desc': 'Modify filter context',
+  'welcome.dismiss': 'Skip \u2014 start with empty editor',
+
+  // Side panel tabs (legacy)
   'tab.function_help': 'Function Help',
   'tab.best_practices': 'Best Practices',
   'tab.model_browser': 'Model Browser',

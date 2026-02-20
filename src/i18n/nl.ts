@@ -7,7 +7,28 @@ export const nl: Record<string, string> = {
   'app.btn_copy_title': 'Opgemaakte DAX kopiëren',
   'app.copied': 'Gekopieerd!',
 
-  // Side panel tabs
+  // Statusbalk
+  'status.all_good': 'Alles goed \u2014 geen problemen gevonden',
+  'status.suggestions': '{count} suggesties',
+
+  // Drawer tabs
+  'drawer.help': 'Hulp',
+  'drawer.model': 'Model',
+  'drawer.saved': 'Opgeslagen',
+  'drawer.tips': 'Tips',
+
+  // Welkomstscherm
+  'welcome.title': 'Schrijf je eerste DAX-expressie',
+  'welcome.subtitle': 'Kies een template om te beginnen, of begin met typen in de editor.',
+  'welcome.template_simple': 'Eenvoudige Measure',
+  'welcome.template_simple_desc': 'SUM, AVERAGE, COUNT',
+  'welcome.template_yoy': 'Year-over-Year',
+  'welcome.template_yoy_desc': 'Vergelijk met vorig jaar',
+  'welcome.template_calculate': 'CALCULATE Patroon',
+  'welcome.template_calculate_desc': 'Filter context wijzigen',
+  'welcome.dismiss': 'Overslaan \u2014 begin met lege editor',
+
+  // Side panel tabs (legacy)
   'tab.function_help': 'Functiehulp',
   'tab.best_practices': 'Best practices',
   'tab.model_browser': 'Model Browser',
