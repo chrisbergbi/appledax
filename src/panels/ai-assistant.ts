@@ -1,6 +1,6 @@
 import { t } from '../i18n/index';
 import type { EditorAdapter } from '../editor/editor-interface';
-import { isPuterLoaded, chatStream } from '../ai/provider';
+import { isPuterLoaded, chatStream, signIn } from '../ai/provider';
 import type { ChatMessage } from '../ai/provider';
 import { buildSystemPrompt } from '../ai/context';
 
@@ -18,6 +18,8 @@ function esc(text: string): string {
 interface UIMessage {
   role: 'user' | 'assistant';
   content: string;
+  /** If true, content is raw HTML and should not be escaped/formatted */
+  rawHtml?: boolean;
 }
 
 /* ── Markdown-like formatter ─────────────────────────────── */
@@ -122,7 +124,11 @@ export class AIAssistantPanel {
     } else {
       messagesHtml = this.messages.map((msg) => {
         const roleClass = msg.role === 'user' ? 'ai-msg-user' : 'ai-msg-assistant';
-        const content = msg.role === 'assistant' ? formatMarkdown(msg.content) : esc(msg.content);
+        const content = msg.rawHtml
+          ? msg.content
+          : msg.role === 'assistant'
+            ? formatMarkdown(msg.content)
+            : esc(msg.content);
         return `<div class="ai-msg ${roleClass}">${content}</div>`;
       }).join('');
     }
@@ -222,6 +228,38 @@ export class AIAssistantPanel {
     input?.focus();
   }
 
+  /**
+   * Attach click handler for inline sign-in button shown when auth is required.
+   */
+  private attachSignInHandler(): void {
+    const btn = this.container.querySelector('#ai-inline-signin') as HTMLButtonElement | null;
+    btn?.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = '...';
+      try {
+        await signIn();
+        // Remove the auth message and retry the last user message
+        const lastUserMsg = [...this.messages].reverse().find((m) => m.role === 'user');
+        // Remove the auth error message
+        if (this.messages.length > 0 && this.messages[this.messages.length - 1].role === 'assistant') {
+          this.messages.pop();
+        }
+        if (lastUserMsg) {
+          // Remove the user message too — handleSend will re-add it
+          const idx = this.messages.lastIndexOf(lastUserMsg);
+          if (idx >= 0) this.messages.splice(idx, 1);
+          this.render();
+          await this.handleSend(lastUserMsg.content);
+        } else {
+          this.render();
+        }
+      } catch {
+        btn.textContent = t('ai.signin_btn');
+        btn.disabled = false;
+      }
+    });
+  }
+
   /* ── Send message with streaming ───────────────────────── */
 
   private async handleSend(text: string): Promise<void> {
@@ -245,6 +283,19 @@ export class AIAssistantPanel {
       this.messages.push({ role: 'assistant', content: fullResponse });
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
+      if (errorMsg === 'AUTH_REQUIRED') {
+        // Puter needs the user to sign in — show inline prompt
+        this.messages.push({
+          role: 'assistant',
+          content: t('ai.needs_signin'),
+          rawHtml: true,
+        });
+        this.isLoading = false;
+        this.streamingContent = '';
+        this.render();
+        this.attachSignInHandler();
+        return;
+      }
       this.messages.push({ role: 'assistant', content: `${t('ai.error')}: ${errorMsg}` });
     }
 

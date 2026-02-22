@@ -230,6 +230,8 @@ export const en: Record<string, string> = {
   // AI Assistant
   'ai.unavailable': 'AI assistant could not be loaded.',
   'ai.unavailable_hint': 'The Puter.js script failed to load. Check your internet connection or try refreshing.',
+  'ai.needs_signin': 'To use the AI assistant, please sign in with a free Puter account first. <button id="ai-inline-signin" class="ai-inline-signin-btn">Sign in with Puter</button>',
+  'ai.signin_btn': 'Sign in with Puter',
   'ai.privacy_note': 'Your DAX code and model schema are sent to Puter/OpenAI for processing.',
   'ai.welcome': 'Ask me anything about DAX! I can see your current code and data model.',
   'ai.suggest_explain': 'Explain my code',

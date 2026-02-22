@@ -1822,6 +1822,29 @@ html.theme-transitioning *::after {
   color: var(--text-ghost);
 }
 
+.ai-inline-signin-btn {
+  display: inline-block;
+  background: var(--accent-primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 6px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background 0.15s;
+}
+
+.ai-inline-signin-btn:hover {
+  background: var(--accent-primary-hover);
+}
+
+.ai-inline-signin-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Chat layout */
 .ai-chat {
   display: flex;
