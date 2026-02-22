@@ -20,6 +20,7 @@ declare global {
           prompt: string | Array<{ role: string; content: string }>,
           options?: { model?: string; stream?: boolean },
         ): Promise<{ message: { content: string } }> | AsyncIterable<{ text?: string }>;
+        listModels(provider?: string): Promise<PuterModelInfo[]>;
       };
       auth: {
         signIn(): Promise<void>;
@@ -29,18 +30,116 @@ declare global {
   }
 }
 
+/** Raw model info returned by puter.ai.listModels() */
+interface PuterModelInfo {
+  id: string;
+  name?: string;
+  provider?: { name?: string; id?: string };
+  aliases?: string[];
+  [key: string]: unknown;
+}
+
+/** Simplified model info for our UI */
+export interface AIModel {
+  id: string;
+  name: string;
+  provider: string;
+}
+
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
 }
 
-// Use Puter's default model (currently gpt-4o-mini) rather than
-// hardcoding a model that may not be available to all users.
-const MODEL = 'gpt-4o-mini';
+/* ── Constants ─────────────────────────────────────────── */
+
+const DEFAULT_MODEL = 'gpt-4o-mini';
+const STORAGE_KEY = 'appledax-ai-model';
 
 // Timeout for the first chunk during streaming (ms).
-// If no data arrives within this window, fall back to non-streaming.
 const STREAM_FIRST_CHUNK_TIMEOUT = 15_000;
+
+/** Curated list of recommended models shown at the top of the selector. */
+export const FAVORITE_MODELS: AIModel[] = [
+  { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'openai' },
+  { id: 'gpt-4o', name: 'GPT-4o', provider: 'openai' },
+  { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6', provider: 'anthropic' },
+  { id: 'claude-opus-4-6', name: 'Claude Opus 4.6', provider: 'anthropic' },
+  { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite', provider: 'google' },
+  { id: 'deepseek-r1', name: 'DeepSeek R1', provider: 'deepseek' },
+];
+
+/* ── Model management ──────────────────────────────────── */
+
+let _cachedModels: AIModel[] | null = null;
+let _modelsLoading: Promise<AIModel[]> | null = null;
+
+/**
+ * Get the currently selected model ID (from localStorage or default).
+ */
+export function getModel(): string {
+  try {
+    return localStorage.getItem(STORAGE_KEY) ?? DEFAULT_MODEL;
+  } catch {
+    return DEFAULT_MODEL;
+  }
+}
+
+/**
+ * Set the selected model ID (persists to localStorage).
+ */
+export function setModel(modelId: string): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, modelId);
+  } catch {
+    // localStorage unavailable — silently ignore
+  }
+}
+
+/**
+ * Fetch available models from Puter.js API.
+ * Results are cached after first successful fetch.
+ * Returns an empty array if the API call fails.
+ */
+export async function listModels(): Promise<AIModel[]> {
+  if (_cachedModels) return _cachedModels;
+  if (_modelsLoading) return _modelsLoading;
+
+  _modelsLoading = fetchModels();
+  try {
+    _cachedModels = await _modelsLoading;
+    return _cachedModels;
+  } finally {
+    _modelsLoading = null;
+  }
+}
+
+async function fetchModels(): Promise<AIModel[]> {
+  if (!isPuterLoaded()) return [];
+  try {
+    const raw = await window.puter!.ai.listModels();
+    if (!Array.isArray(raw)) return [];
+
+    const favoriteIds = new Set(FAVORITE_MODELS.map((m) => m.id));
+
+    return raw
+      .filter((m) => m.id && !favoriteIds.has(m.id))
+      .map((m) => ({
+        id: m.id,
+        name: m.name ?? m.id,
+        provider: m.provider?.name ?? m.provider?.id ?? 'unknown',
+      }))
+      .sort((a, b) => {
+        const provCmp = a.provider.localeCompare(b.provider);
+        return provCmp !== 0 ? provCmp : a.name.localeCompare(b.name);
+      });
+  } catch (err) {
+    console.warn('[APPLEDAX] Failed to list models:', err);
+    return [];
+  }
+}
+
+/* ── Core functions ────────────────────────────────────── */
 
 /**
  * Check whether the Puter.js SDK script has loaded.
@@ -58,7 +157,7 @@ export async function signIn(): Promise<void> {
 }
 
 /**
- * Send a chat request through Puter.js.
+ * Send a chat request through Puter.js using the currently selected model.
  * Tries streaming first; falls back to non-streaming if streaming
  * hangs (known Puter.js bug) or encounters an error.
  * Calls onChunk with each piece of text as it arrives.
@@ -72,9 +171,11 @@ export async function chatStream(
     throw new Error('Puter.js is not loaded');
   }
 
+  const model = getModel();
+
   // ── Attempt 1: streaming with timeout ──────────────────
   try {
-    const result = await streamWithTimeout(messages, onChunk);
+    const result = await streamWithTimeout(messages, model, onChunk);
     if (result !== null) return result;
     // null means timeout — fall through to non-streaming
   } catch {
@@ -83,7 +184,7 @@ export async function chatStream(
 
   // ── Attempt 2: non-streaming (reliable) ────────────────
   try {
-    const response = await window.puter!.ai.chat(messages, { model: MODEL }) as {
+    const response = await window.puter!.ai.chat(messages, { model }) as {
       message: { content: string };
     };
     const content = response?.message?.content ?? '';
@@ -108,9 +209,10 @@ export async function chatStream(
  */
 async function streamWithTimeout(
   messages: ChatMessage[],
+  model: string,
   onChunk: (text: string) => void,
 ): Promise<string | null> {
-  const stream = window.puter!.ai.chat(messages, { model: MODEL, stream: true });
+  const stream = window.puter!.ai.chat(messages, { model, stream: true });
 
   // Check if it's actually an async iterable
   if (!stream || typeof stream !== 'object' || !(Symbol.asyncIterator in (stream as object))) {

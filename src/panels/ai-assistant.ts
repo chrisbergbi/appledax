@@ -1,7 +1,7 @@
 import { t } from '../i18n/index';
 import type { EditorAdapter } from '../editor/editor-interface';
-import { isPuterLoaded, chatStream, signIn } from '../ai/provider';
-import type { ChatMessage } from '../ai/provider';
+import { isPuterLoaded, chatStream, signIn, getModel, setModel, listModels, FAVORITE_MODELS } from '../ai/provider';
+import type { ChatMessage, AIModel } from '../ai/provider';
 import { buildSystemPrompt } from '../ai/context';
 
 /* ── Helpers ────────────────────────────────────────────── */
@@ -20,6 +20,8 @@ interface UIMessage {
   content: string;
   /** If true, content is raw HTML and should not be escaped/formatted */
   rawHtml?: boolean;
+  /** Model ID used for this assistant message */
+  model?: string;
 }
 
 /* ── Markdown-like formatter ─────────────────────────────── */
@@ -78,6 +80,8 @@ export class AIAssistantPanel {
   private messages: UIMessage[] = [];
   private isLoading = false;
   private streamingContent = '';
+  private allModels: AIModel[] = [];
+  private modelsLoaded = false;
 
   constructor(editor: EditorAdapter) {
     this.container = document.getElementById('ai-assistant-panel')!;
@@ -93,6 +97,11 @@ export class AIAssistantPanel {
     // Puter.js v2 handles authentication automatically (temporary user sessions).
     // No explicit sign-in gate is needed — ai.chat() will prompt if required.
     this.renderChat();
+
+    // Load model list in the background (non-blocking)
+    if (!this.modelsLoaded) {
+      this.loadModelList();
+    }
   }
 
   /* ── Render states ────────────────────────────────────── */
@@ -129,7 +138,10 @@ export class AIAssistantPanel {
           : msg.role === 'assistant'
             ? formatMarkdown(msg.content)
             : esc(msg.content);
-        return `<div class="ai-msg ${roleClass}">${content}</div>`;
+        const badgeHtml = msg.role === 'assistant' && msg.model && !msg.rawHtml
+          ? `<span class="ai-model-badge">${esc(msg.model)}</span>`
+          : '';
+        return `<div class="ai-msg ${roleClass}">${content}${badgeHtml}</div>`;
       }).join('');
     }
 
@@ -145,9 +157,15 @@ export class AIAssistantPanel {
       ? `<button class="ai-clear-btn" id="ai-clear-btn" title="${esc(t('ai.new_chat'))}">${esc(t('ai.new_chat'))}</button>`
       : '';
 
+    const modelSelectHtml = this.buildModelSelectHtml();
+
     this.container.innerHTML = `
       <div class="ai-chat">
-        ${clearBtnHtml ? `<div class="ai-chat-header">${clearBtnHtml}</div>` : ''}
+        <div class="ai-chat-header">
+          ${modelSelectHtml}
+          <div class="ai-header-spacer"></div>
+          ${clearBtnHtml}
+        </div>
         <div class="ai-messages" id="ai-messages">
           ${messagesHtml}
           ${loadingHtml}
@@ -163,12 +181,81 @@ export class AIAssistantPanel {
     this.scrollToBottom();
   }
 
+  /* ── Model selector ─────────────────────────────────── */
+
+  private buildModelSelectHtml(): string {
+    const currentModel = getModel();
+
+    // Build favorites options
+    let optionsHtml = `<optgroup label="${esc(t('ai.model_favorites'))}">`;
+    for (const m of FAVORITE_MODELS) {
+      const selected = m.id === currentModel ? ' selected' : '';
+      optionsHtml += `<option value="${esc(m.id)}"${selected}>${esc(m.name)}</option>`;
+    }
+    optionsHtml += '</optgroup>';
+
+    // Build full model list grouped by provider
+    if (this.allModels.length > 0) {
+      const byProvider = new Map<string, AIModel[]>();
+      for (const m of this.allModels) {
+        const group = byProvider.get(m.provider) ?? [];
+        group.push(m);
+        byProvider.set(m.provider, group);
+      }
+
+      for (const [provider, models] of byProvider) {
+        optionsHtml += `<optgroup label="${esc(provider)}">`;
+        for (const m of models) {
+          const selected = m.id === currentModel ? ' selected' : '';
+          optionsHtml += `<option value="${esc(m.id)}"${selected}>${esc(m.name)}</option>`;
+        }
+        optionsHtml += '</optgroup>';
+      }
+    } else if (!this.modelsLoaded) {
+      optionsHtml += `<optgroup label="${esc(t('ai.model_loading'))}">`;
+      optionsHtml += `<option disabled>${esc(t('ai.model_loading'))}</option>`;
+      optionsHtml += '</optgroup>';
+    }
+
+    // If current model isn't in favorites or allModels, add it as a standalone option
+    const allKnownIds = new Set([
+      ...FAVORITE_MODELS.map((m) => m.id),
+      ...this.allModels.map((m) => m.id),
+    ]);
+    if (!allKnownIds.has(currentModel)) {
+      optionsHtml = `<option value="${esc(currentModel)}" selected>${esc(currentModel)}</option>` + optionsHtml;
+    }
+
+    return `<select class="ai-model-select" id="ai-model-select" title="${esc(t('ai.model_label'))}">${optionsHtml}</select>`;
+  }
+
+  private async loadModelList(): Promise<void> {
+    try {
+      this.allModels = await listModels();
+    } catch {
+      this.allModels = [];
+    }
+    this.modelsLoaded = true;
+
+    // Update the select element in-place if it exists (don't re-render whole panel)
+    const selectEl = document.getElementById('ai-model-select') as HTMLSelectElement | null;
+    if (selectEl) {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = this.buildModelSelectHtml();
+      const newSelect = tempDiv.querySelector('select');
+      if (newSelect) {
+        selectEl.innerHTML = newSelect.innerHTML;
+      }
+    }
+  }
+
   /* ── Event handlers ───────────────────────────────────── */
 
   private attachChatHandlers(): void {
     const input = document.getElementById('ai-input') as HTMLTextAreaElement | null;
     const sendBtn = document.getElementById('ai-send-btn');
     const clearBtn = document.getElementById('ai-clear-btn');
+    const modelSelect = document.getElementById('ai-model-select') as HTMLSelectElement | null;
 
     const sendMessage = () => {
       const text = input?.value.trim();
@@ -191,6 +278,11 @@ export class AIAssistantPanel {
         input.style.height = 'auto';
         input.style.height = Math.min(input.scrollHeight, 120) + 'px';
       }
+    });
+
+    // Model selector change
+    modelSelect?.addEventListener('change', () => {
+      setModel(modelSelect.value);
     });
 
     // Quick suggestion buttons
@@ -268,11 +360,15 @@ export class AIAssistantPanel {
     this.streamingContent = '';
     this.render();
 
+    const usedModel = getModel();
+
     try {
       const systemPrompt = buildSystemPrompt(this.editor);
       const apiMessages: ChatMessage[] = [
         { role: 'system', content: systemPrompt },
-        ...this.messages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+        ...this.messages
+          .filter((m) => !m.rawHtml)
+          .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
       ];
 
       const fullResponse = await chatStream(apiMessages, (chunk) => {
@@ -280,7 +376,7 @@ export class AIAssistantPanel {
         this.updateStreamingMessage();
       });
 
-      this.messages.push({ role: 'assistant', content: fullResponse });
+      this.messages.push({ role: 'assistant', content: fullResponse, model: usedModel });
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       if (errorMsg === 'AUTH_REQUIRED') {
@@ -296,7 +392,7 @@ export class AIAssistantPanel {
         this.attachSignInHandler();
         return;
       }
-      this.messages.push({ role: 'assistant', content: `${t('ai.error')}: ${errorMsg}` });
+      this.messages.push({ role: 'assistant', content: `${t('ai.error')}: ${errorMsg}`, model: usedModel });
     }
 
     this.isLoading = false;
