@@ -230,9 +230,6 @@ export const nl: Record<string, string> = {
   // AI Assistent
   'ai.unavailable': 'AI-assistent kon niet worden geladen.',
   'ai.unavailable_hint': 'Het Puter.js-script kon niet worden geladen. Controleer je internetverbinding of vernieuw de pagina.',
-  'ai.signin_title': 'DAX AI-assistent',
-  'ai.signin_desc': 'Log in met een gratis Puter-account voor AI-gestuurde DAX-hulp. De assistent kan je code en geladen datamodel zien voor contextbewuste antwoorden.',
-  'ai.signin_btn': 'Inloggen met Puter',
   'ai.privacy_note': 'Je DAX-code en modelschema worden naar Puter/OpenAI gestuurd voor verwerking.',
   'ai.welcome': 'Stel me een vraag over DAX! Ik kan je huidige code en datamodel zien.',
   'ai.suggest_explain': 'Leg mijn code uit',

@@ -1,6 +1,6 @@
 import { t } from '../i18n/index';
 import type { EditorAdapter } from '../editor/editor-interface';
-import { isPuterLoaded, isPuterSignedIn, signIn, chatStream } from '../ai/provider';
+import { isPuterLoaded, chatStream } from '../ai/provider';
 import type { ChatMessage } from '../ai/provider';
 import { buildSystemPrompt } from '../ai/context';
 
@@ -88,10 +88,8 @@ export class AIAssistantPanel {
       this.renderUnavailable();
       return;
     }
-    if (!isPuterSignedIn()) {
-      this.renderSignIn();
-      return;
-    }
+    // Puter.js v2 handles authentication automatically (temporary user sessions).
+    // No explicit sign-in gate is needed — ai.chat() will prompt if required.
     this.renderChat();
   }
 
@@ -105,27 +103,6 @@ export class AIAssistantPanel {
         <p class="ai-hint">${esc(t('ai.unavailable_hint'))}</p>
       </div>
     `;
-  }
-
-  private renderSignIn(): void {
-    this.container.innerHTML = `
-      <div class="ai-signin">
-        <p class="ai-signin-icon">&#129302;</p>
-        <h3>${esc(t('ai.signin_title'))}</h3>
-        <p>${esc(t('ai.signin_desc'))}</p>
-        <button class="ai-signin-btn" id="ai-signin-btn">${esc(t('ai.signin_btn'))}</button>
-        <p class="ai-privacy-note">${esc(t('ai.privacy_note'))}</p>
-      </div>
-    `;
-
-    document.getElementById('ai-signin-btn')?.addEventListener('click', async () => {
-      try {
-        await signIn();
-        this.render();
-      } catch {
-        // User cancelled or error
-      }
-    });
   }
 
   private renderChat(): void {

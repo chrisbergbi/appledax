@@ -1801,8 +1801,7 @@ html.theme-transitioning *::after {
 
 /* === AI Assistant Panel === */
 
-.ai-empty,
-.ai-signin {
+.ai-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1813,8 +1812,7 @@ html.theme-transitioning *::after {
   gap: 8px;
 }
 
-.ai-empty-icon,
-.ai-signin-icon {
+.ai-empty-icon {
   font-size: 32px;
   margin-bottom: 8px;
 }
@@ -1822,42 +1820,6 @@ html.theme-transitioning *::after {
 .ai-hint {
   font-size: 12px;
   color: var(--text-ghost);
-}
-
-.ai-signin h3 {
-  color: var(--text-primary);
-  margin: 0;
-  font-size: 16px;
-}
-
-.ai-signin p {
-  font-size: 13px;
-  max-width: 360px;
-  line-height: 1.5;
-}
-
-.ai-signin-btn {
-  background: var(--accent-primary);
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-md);
-  padding: 8px 20px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  margin-top: 8px;
-  transition: background 0.15s;
-}
-
-.ai-signin-btn:hover {
-  background: var(--accent-primary-hover);
-}
-
-.ai-privacy-note {
-  font-size: 11px;
-  color: var(--text-ghost);
-  margin-top: 12px;
-  font-style: italic;
 }
 
 /* Chat layout */

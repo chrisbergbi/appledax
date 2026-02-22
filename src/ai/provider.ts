@@ -3,7 +3,8 @@
 /**
  * Thin abstraction over Puter.js AI chat API.
  * Puter.js is loaded via CDN script tag in index.html and
- * exposes a global `puter` object once the user authenticates.
+ * exposes a global `puter` object. Authentication is handled
+ * automatically by Puter.js v2 (temporary user sessions).
  */
 
 // Minimal type declaration for the global puter object
@@ -15,10 +16,6 @@ declare global {
           prompt: string | Array<{ role: string; content: string }>,
           options?: { model?: string; stream?: boolean },
         ): Promise<{ message: { content: string } }> | AsyncIterable<{ text?: string }>;
-      };
-      auth: {
-        signIn(): Promise<void>;
-        isSignedIn(): boolean;
       };
     };
   }
@@ -36,34 +33,6 @@ const MODEL = 'gpt-4o';
  */
 export function isPuterLoaded(): boolean {
   return typeof window.puter !== 'undefined';
-}
-
-/**
- * Check whether the user is authenticated with Puter.
- */
-export function isPuterSignedIn(): boolean {
-  return isPuterLoaded() && (window.puter!.auth.isSignedIn?.() ?? false);
-}
-
-/**
- * Trigger Puter sign-in flow.
- */
-export async function signIn(): Promise<void> {
-  if (!isPuterLoaded()) return;
-  await window.puter!.auth.signIn();
-}
-
-/**
- * Send a chat completion request through Puter.js.
- * Returns the assistant's reply as a string.
- */
-export async function chat(messages: ChatMessage[]): Promise<string> {
-  if (!isPuterLoaded()) {
-    throw new Error('Puter.js is not loaded');
-  }
-
-  const response = await window.puter!.ai.chat(messages, { model: MODEL }) as { message: { content: string } };
-  return response?.message?.content ?? '';
 }
 
 /**
