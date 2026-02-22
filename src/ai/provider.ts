@@ -6,9 +6,8 @@
  * exposes a global `puter` object. Authentication is handled
  * automatically by Puter.js v2 (temporary user sessions).
  *
- * NOTE: Puter.js streaming has a known bug where stream: true
- * hangs indefinitely on errors (e.g. auth, rate limits).
- * We work around this with a timeout + non-streaming fallback.
+ * IMPORTANT: puter.ai.chat() always returns an AsyncGenerator,
+ * even when stream: false. We must always iterate the response.
  */
 
 // Minimal type declaration for the global puter object
@@ -16,10 +15,11 @@ declare global {
   interface Window {
     puter?: {
       ai: {
+        // Always returns an async iterable, regardless of stream option
         chat(
           prompt: string | Array<{ role: string; content: string }>,
           options?: { model?: string; stream?: boolean },
-        ): Promise<unknown> | AsyncIterable<{ text?: string }>;
+        ): unknown;
         listModels(provider?: string): Promise<PuterModelInfo[]>;
       };
       auth: {
@@ -55,9 +55,6 @@ export interface ChatMessage {
 
 const DEFAULT_MODEL = 'gpt-4o-mini';
 const STORAGE_KEY = 'appledax-ai-model';
-
-// Timeout for the first chunk during streaming (ms).
-const STREAM_FIRST_CHUNK_TIMEOUT = 15_000;
 
 /** Curated list of recommended models shown at the top of the selector. */
 export const FAVORITE_MODELS: AIModel[] = [
@@ -139,62 +136,6 @@ async function fetchModels(): Promise<AIModel[]> {
   }
 }
 
-/* ── Response parsing ──────────────────────────────────── */
-
-/**
- * Extract text content from a Puter.js chat response.
- * Handles multiple response formats:
- *  - string (some models return content as a plain string)
- *  - { message: { content: string } } (OpenAI-style)
- *  - { message: { content: [{ text: string }] } } (Anthropic-style)
- *  - { text: string } (simple format)
- *  - { message: { content: [{ type: 'text', text: string }] } }
- */
-function extractContent(response: unknown): string {
-  if (!response) return '';
-  if (typeof response === 'string') return response;
-
-  const r = response as Record<string, unknown>;
-
-  // Try response.message.content
-  const message = r.message as Record<string, unknown> | undefined;
-  if (message) {
-    const content = message.content;
-    if (typeof content === 'string') return content;
-    // Anthropic-style: content is an array of blocks
-    if (Array.isArray(content)) {
-      return content
-        .map((block: unknown) => {
-          if (typeof block === 'string') return block;
-          const b = block as Record<string, unknown>;
-          return (b.text as string) ?? '';
-        })
-        .filter(Boolean)
-        .join('');
-    }
-  }
-
-  // Try response.text directly
-  if (typeof r.text === 'string') return r.text;
-
-  // Try response.content directly
-  if (typeof r.content === 'string') return r.content;
-  if (Array.isArray(r.content)) {
-    return (r.content as Array<Record<string, unknown>>)
-      .map((block) => (typeof block === 'string' ? block : (block.text as string) ?? ''))
-      .filter(Boolean)
-      .join('');
-  }
-
-  // Last resort: stringify and check if it looks like useful text
-  const str = String(response);
-  if (str && str !== '[object Object]') return str;
-
-  // Debug: log the unexpected format
-  console.warn('[APPLEDAX] Unexpected AI response format:', JSON.stringify(response).slice(0, 500));
-  return '';
-}
-
 /* ── Core functions ────────────────────────────────────── */
 
 /**
@@ -214,10 +155,10 @@ export async function signIn(): Promise<void> {
 
 /**
  * Send a chat request through Puter.js using the currently selected model.
- * Tries streaming first; falls back to non-streaming if streaming
- * hangs (known Puter.js bug) or encounters an error.
- * Calls onChunk with each piece of text as it arrives.
- * Returns the full response when complete.
+ *
+ * Puter.js ai.chat() always returns an AsyncGenerator (even without stream: true).
+ * We iterate the response and call onChunk for each text piece.
+ * Returns the full assembled response.
  */
 export async function chatStream(
   messages: ChatMessage[],
@@ -229,36 +170,10 @@ export async function chatStream(
 
   const model = getModel();
 
-  console.log('[APPLEDAX] chatStream: using model', model);
-
-  // ── Attempt 1: streaming with timeout ──────────────────
   try {
-    console.log('[APPLEDAX] Attempting streaming...');
-    const result = await streamWithTimeout(messages, model, onChunk);
-    if (result !== null) {
-      console.log('[APPLEDAX] Streaming succeeded, length:', result.length);
-      return result;
-    }
-    console.log('[APPLEDAX] Streaming timed out, trying non-streaming...');
-  } catch (streamErr) {
-    console.log('[APPLEDAX] Streaming error:', streamErr, '— trying non-streaming...');
-  }
-
-  // ── Attempt 2: non-streaming (reliable) ────────────────
-  try {
-    console.log('[APPLEDAX] Attempting non-streaming...');
-    const response = await window.puter!.ai.chat(messages, { model });
-    console.log('[APPLEDAX] Raw response:', JSON.stringify(response)?.slice(0, 500));
-    const content = extractContent(response);
-    console.log('[APPLEDAX] Extracted content length:', content.length, 'preview:', content.slice(0, 100));
-    if (content) {
-      onChunk(content);
-      return content;
-    }
-    throw new Error('Empty response from AI');
+    const result = window.puter!.ai.chat(messages, { model, stream: true });
+    return await consumeResponse(result, onChunk);
   } catch (err) {
-    console.error('[APPLEDAX] Non-streaming error:', err);
-    // Check if the error is auth-related
     const msg = err instanceof Error ? err.message : String(err);
     if (msg.toLowerCase().includes('auth') || msg.toLowerCase().includes('sign')) {
       throw new Error('AUTH_REQUIRED');
@@ -268,66 +183,120 @@ export async function chatStream(
 }
 
 /**
- * Attempt streaming with a timeout for the first chunk.
- * Returns null if it times out (caller should fall back).
+ * Consume a Puter.js AI response which can be:
+ * - An AsyncIterable/AsyncGenerator (most common, chunks with .text)
+ * - A Promise resolving to a response object
+ * - A plain response object
  */
-async function streamWithTimeout(
-  messages: ChatMessage[],
-  model: string,
+async function consumeResponse(
+  result: unknown,
   onChunk: (text: string) => void,
-): Promise<string | null> {
-  const stream = window.puter!.ai.chat(messages, { model, stream: true });
-
-  // Check if it's actually an async iterable
-  if (!stream || typeof stream !== 'object' || !(Symbol.asyncIterator in (stream as object))) {
-    // Not a stream — treat as promise
-    const response = await (stream as Promise<unknown>);
-    const content = extractContent(response);
-    if (content) onChunk(content);
-    return content;
+): Promise<string> {
+  // Case 1: AsyncIterable (AsyncGenerator) — iterate chunks
+  if (result && typeof result === 'object' && Symbol.asyncIterator in (result as object)) {
+    let fullText = '';
+    for await (const chunk of result as AsyncIterable<unknown>) {
+      const text = extractChunkText(chunk);
+      if (text) {
+        fullText += text;
+        onChunk(text);
+      }
+    }
+    if (fullText) return fullText;
+    throw new Error('Empty response from AI (stream produced no text)');
   }
 
-  const iterator = (stream as AsyncIterable<{ text?: string }>)[Symbol.asyncIterator]();
-  let fullText = '';
-  let gotFirstChunk = false;
+  // Case 2: Promise — await it, then try to extract or iterate
+  if (result && typeof result === 'object' && 'then' in (result as object)) {
+    const resolved = await (result as Promise<unknown>);
 
-  // Race the first chunk against a timeout
-  const firstResult = await Promise.race([
-    iterator.next(),
-    new Promise<null>((resolve) => setTimeout(() => resolve(null), STREAM_FIRST_CHUNK_TIMEOUT)),
-  ]);
+    // The resolved value might itself be an async iterable
+    if (resolved && typeof resolved === 'object' && Symbol.asyncIterator in (resolved as object)) {
+      return consumeResponse(resolved, onChunk);
+    }
 
-  if (firstResult === null) {
-    // Timed out waiting for first chunk — streaming is hanging
-    console.warn('[APPLEDAX] Streaming timed out, falling back to non-streaming');
-    return null;
-  }
-
-  // Process first chunk
-  const firstChunk = firstResult as IteratorResult<{ text?: string }>;
-  if (!firstChunk.done) {
-    const text = firstChunk.value?.text ?? '';
+    // Or a plain response object
+    const text = extractObjectText(resolved);
     if (text) {
-      fullText += text;
       onChunk(text);
-      gotFirstChunk = true;
+      return text;
+    }
+    throw new Error('Empty response from AI');
+  }
+
+  // Case 3: Plain object or string
+  const text = extractObjectText(result);
+  if (text) {
+    onChunk(text);
+    return text;
+  }
+
+  throw new Error('Unexpected AI response format');
+}
+
+/**
+ * Extract text from a single streaming chunk.
+ * Chunks typically have { text: "..." } or { message: { content: "..." } }
+ */
+function extractChunkText(chunk: unknown): string {
+  if (!chunk) return '';
+  if (typeof chunk === 'string') return chunk;
+
+  const c = chunk as Record<string, unknown>;
+
+  // Most common: chunk.text
+  if (typeof c.text === 'string') return c.text;
+
+  // Some chunks have message.content
+  if (c.message && typeof c.message === 'object') {
+    const msg = c.message as Record<string, unknown>;
+    if (typeof msg.content === 'string') return msg.content;
+    if (Array.isArray(msg.content)) {
+      return (msg.content as unknown[])
+        .map((b) => (typeof b === 'string' ? b : (b as Record<string, unknown>)?.text as string ?? ''))
+        .filter(Boolean)
+        .join('');
     }
   }
 
-  if (firstChunk.done) {
-    return gotFirstChunk ? fullText : null;
-  }
+  return '';
+}
 
-  // Continue reading remaining chunks (no timeout — first arrived fine)
-  while (true) {
-    const { value, done } = await iterator.next();
-    if (done) break;
-    const text = value?.text ?? '';
-    if (text) {
-      fullText += text;
-      onChunk(text);
+/**
+ * Extract text from a complete (non-streaming) response object.
+ * Handles OpenAI-style, Anthropic-style, and simple formats.
+ */
+function extractObjectText(response: unknown): string {
+  if (!response) return '';
+  if (typeof response === 'string') return response;
+
+  const r = response as Record<string, unknown>;
+
+  // { message: { content: "..." } } — OpenAI style
+  // { message: { content: [{ text: "..." }] } } — Anthropic style
+  if (r.message && typeof r.message === 'object') {
+    const msg = r.message as Record<string, unknown>;
+    const content = msg.content;
+    if (typeof content === 'string') return content;
+    if (Array.isArray(content)) {
+      return (content as unknown[])
+        .map((b) => (typeof b === 'string' ? b : (b as Record<string, unknown>)?.text as string ?? ''))
+        .filter(Boolean)
+        .join('');
     }
   }
 
-  return fullText;
+  // { text: "..." }
+  if (typeof r.text === 'string') return r.text;
+
+  // { content: "..." } or { content: [...] }
+  if (typeof r.content === 'string') return r.content;
+  if (Array.isArray(r.content)) {
+    return (r.content as unknown[])
+      .map((b) => (typeof b === 'string' ? b : (b as Record<string, unknown>)?.text as string ?? ''))
+      .filter(Boolean)
+      .join('');
+  }
+
+  return '';
 }
