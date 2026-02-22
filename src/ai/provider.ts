@@ -19,7 +19,7 @@ declare global {
         chat(
           prompt: string | Array<{ role: string; content: string }>,
           options?: { model?: string; stream?: boolean },
-        ): Promise<{ message: { content: string } }> | AsyncIterable<{ text?: string }>;
+        ): Promise<unknown> | AsyncIterable<{ text?: string }>;
         listModels(provider?: string): Promise<PuterModelInfo[]>;
       };
       auth: {
@@ -139,6 +139,62 @@ async function fetchModels(): Promise<AIModel[]> {
   }
 }
 
+/* ── Response parsing ──────────────────────────────────── */
+
+/**
+ * Extract text content from a Puter.js chat response.
+ * Handles multiple response formats:
+ *  - string (some models return content as a plain string)
+ *  - { message: { content: string } } (OpenAI-style)
+ *  - { message: { content: [{ text: string }] } } (Anthropic-style)
+ *  - { text: string } (simple format)
+ *  - { message: { content: [{ type: 'text', text: string }] } }
+ */
+function extractContent(response: unknown): string {
+  if (!response) return '';
+  if (typeof response === 'string') return response;
+
+  const r = response as Record<string, unknown>;
+
+  // Try response.message.content
+  const message = r.message as Record<string, unknown> | undefined;
+  if (message) {
+    const content = message.content;
+    if (typeof content === 'string') return content;
+    // Anthropic-style: content is an array of blocks
+    if (Array.isArray(content)) {
+      return content
+        .map((block: unknown) => {
+          if (typeof block === 'string') return block;
+          const b = block as Record<string, unknown>;
+          return (b.text as string) ?? '';
+        })
+        .filter(Boolean)
+        .join('');
+    }
+  }
+
+  // Try response.text directly
+  if (typeof r.text === 'string') return r.text;
+
+  // Try response.content directly
+  if (typeof r.content === 'string') return r.content;
+  if (Array.isArray(r.content)) {
+    return (r.content as Array<Record<string, unknown>>)
+      .map((block) => (typeof block === 'string' ? block : (block.text as string) ?? ''))
+      .filter(Boolean)
+      .join('');
+  }
+
+  // Last resort: stringify and check if it looks like useful text
+  const str = String(response);
+  if (str && str !== '[object Object]') return str;
+
+  // Debug: log the unexpected format
+  console.warn('[APPLEDAX] Unexpected AI response format:', JSON.stringify(response).slice(0, 500));
+  return '';
+}
+
 /* ── Core functions ────────────────────────────────────── */
 
 /**
@@ -184,10 +240,8 @@ export async function chatStream(
 
   // ── Attempt 2: non-streaming (reliable) ────────────────
   try {
-    const response = await window.puter!.ai.chat(messages, { model }) as {
-      message: { content: string };
-    };
-    const content = response?.message?.content ?? '';
+    const response = await window.puter!.ai.chat(messages, { model });
+    const content = extractContent(response);
     if (content) {
       onChunk(content);
       return content;
@@ -217,8 +271,8 @@ async function streamWithTimeout(
   // Check if it's actually an async iterable
   if (!stream || typeof stream !== 'object' || !(Symbol.asyncIterator in (stream as object))) {
     // Not a stream — treat as promise
-    const response = await (stream as Promise<{ message: { content: string } }>);
-    const content = response?.message?.content ?? '';
+    const response = await (stream as Promise<unknown>);
+    const content = extractContent(response);
     if (content) onChunk(content);
     return content;
   }
