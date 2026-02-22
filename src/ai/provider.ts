@@ -229,25 +229,35 @@ export async function chatStream(
 
   const model = getModel();
 
+  console.log('[APPLEDAX] chatStream: using model', model);
+
   // ── Attempt 1: streaming with timeout ──────────────────
   try {
+    console.log('[APPLEDAX] Attempting streaming...');
     const result = await streamWithTimeout(messages, model, onChunk);
-    if (result !== null) return result;
-    // null means timeout — fall through to non-streaming
-  } catch {
-    // Streaming threw an error — fall through to non-streaming
+    if (result !== null) {
+      console.log('[APPLEDAX] Streaming succeeded, length:', result.length);
+      return result;
+    }
+    console.log('[APPLEDAX] Streaming timed out, trying non-streaming...');
+  } catch (streamErr) {
+    console.log('[APPLEDAX] Streaming error:', streamErr, '— trying non-streaming...');
   }
 
   // ── Attempt 2: non-streaming (reliable) ────────────────
   try {
+    console.log('[APPLEDAX] Attempting non-streaming...');
     const response = await window.puter!.ai.chat(messages, { model });
+    console.log('[APPLEDAX] Raw response:', JSON.stringify(response)?.slice(0, 500));
     const content = extractContent(response);
+    console.log('[APPLEDAX] Extracted content length:', content.length, 'preview:', content.slice(0, 100));
     if (content) {
       onChunk(content);
       return content;
     }
     throw new Error('Empty response from AI');
   } catch (err) {
+    console.error('[APPLEDAX] Non-streaming error:', err);
     // Check if the error is auth-related
     const msg = err instanceof Error ? err.message : String(err);
     if (msg.toLowerCase().includes('auth') || msg.toLowerCase().includes('sign')) {
