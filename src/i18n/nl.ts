@@ -136,6 +136,7 @@ export const nl: Record<string, string> = {
   'lint.filter_all_pattern': 'FILTER(ALL(...)) kan traag zijn op grote tabellen. Overweeg CALCULATE met directe booleaanse filterexpressies.',
   'lint.unknown_table': "Onbekende tabel: '{name}'. Tabel niet gevonden in het geladen model.",
   'lint.unknown_column': "Onbekende kolom: [{column}] niet gevonden in tabel '{table}'.",
+  'lint.numeric_aggregation': "{func} vereist een numerieke kolom, maar '{table}'[{column}] heeft datatype '{dataType}'.",
 
   // Best practices
   'bp.performance': 'Prestaties',

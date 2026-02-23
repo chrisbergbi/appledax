@@ -136,6 +136,7 @@ export const en: Record<string, string> = {
   'lint.filter_all_pattern': 'FILTER(ALL(...)) can be slow on large tables. Consider using CALCULATE with direct boolean filter expressions instead.',
   'lint.unknown_table': "Unknown table: '{name}'. Table not found in the loaded model.",
   'lint.unknown_column': "Unknown column: [{column}] not found in table '{table}'.",
+  'lint.numeric_aggregation': "{func} requires a numeric column, but '{table}'[{column}] has data type '{dataType}'.",
 
   // Best practices
   'bp.performance': 'Performance',

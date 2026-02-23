@@ -11,6 +11,7 @@ import { filterAllPattern } from './filter-all-pattern';
 import { unknownTable } from './unknown-table';
 import { unknownColumn } from './unknown-column';
 import { calculateNakedColumn } from './calculate-naked-column';
+import { numericAggregation } from './numeric-aggregation';
 
 export const allRules: LintRule[] = [
   unbalancedParens,
@@ -25,4 +26,5 @@ export const allRules: LintRule[] = [
   filterAllPattern,
   unknownTable,
   unknownColumn,
+  numericAggregation,
 ];
