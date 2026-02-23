@@ -11,6 +11,7 @@
 import * as store from '../model/store';
 import { getLastDiagnostics } from '../editor/cm/dax-lint';
 import type { EditorAdapter } from '../editor/editor-interface';
+import { getPersonaPrompt } from './personas';
 
 const MAX_CODE_CHARS = 3000;
 const MAX_MODEL_TABLES = 40;
@@ -22,13 +23,8 @@ const MAX_COLS_PER_TABLE = 20;
 export function buildSystemPrompt(editor: EditorAdapter): string {
   const parts: string[] = [];
 
-  parts.push(
-    'You are a DAX (Data Analysis Expressions) expert assistant embedded in APPLEDAX, a browser-based DAX editor for Power BI.',
-    'Help the user write, debug, and optimize DAX measures and calculated columns.',
-    'Be concise. When showing DAX code, use proper formatting with VAR/RETURN patterns.',
-    'When referencing tables or columns from the loaded model, use the exact names.',
-    '',
-  );
+  // Use the selected persona's system prompt
+  parts.push(getPersonaPrompt(), '');
 
   // Current editor code
   const code = editor.getValue().trim();

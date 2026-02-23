@@ -3,6 +3,7 @@ import type { EditorAdapter } from '../editor/editor-interface';
 import { isPuterLoaded, chatStream, signIn, getModel, setModel, listModels, FAVORITE_MODELS } from '../ai/provider';
 import type { ChatMessage, AIModel } from '../ai/provider';
 import { buildSystemPrompt } from '../ai/context';
+import { PERSONAS, getPersona, setPersona } from '../ai/personas';
 
 /* ── Helpers ────────────────────────────────────────────── */
 
@@ -157,11 +158,13 @@ export class AIAssistantPanel {
       ? `<button class="ai-clear-btn" id="ai-clear-btn" title="${esc(t('ai.new_chat'))}">${esc(t('ai.new_chat'))}</button>`
       : '';
 
+    const personaSelectorHtml = this.buildPersonaSelectorHtml();
     const modelSelectHtml = this.buildModelSelectHtml();
 
     this.container.innerHTML = `
       <div class="ai-chat">
         <div class="ai-chat-header">
+          ${personaSelectorHtml}
           ${modelSelectHtml}
           <div class="ai-header-spacer"></div>
           ${clearBtnHtml}
@@ -229,6 +232,18 @@ export class AIAssistantPanel {
     return `<select class="ai-model-select" id="ai-model-select" title="${esc(t('ai.model_label'))}">${optionsHtml}</select>`;
   }
 
+  /* ── Persona selector ───────────────────────────────── */
+
+  private buildPersonaSelectorHtml(): string {
+    const currentPersona = getPersona();
+    let optionsHtml = '';
+    for (const p of PERSONAS) {
+      const selected = p.id === currentPersona ? ' selected' : '';
+      optionsHtml += `<option value="${esc(p.id)}"${selected}>${esc(t(p.nameKey))}</option>`;
+    }
+    return `<select class="ai-persona-select" id="ai-persona-select" title="${esc(t('ai.persona_label'))}">${optionsHtml}</select>`;
+  }
+
   private async loadModelList(): Promise<void> {
     try {
       this.allModels = await listModels();
@@ -278,6 +293,12 @@ export class AIAssistantPanel {
         input.style.height = 'auto';
         input.style.height = Math.min(input.scrollHeight, 120) + 'px';
       }
+    });
+
+    // Persona selector change
+    const personaSelect = document.getElementById('ai-persona-select') as HTMLSelectElement | null;
+    personaSelect?.addEventListener('change', () => {
+      setPersona(personaSelect.value);
     });
 
     // Model selector change

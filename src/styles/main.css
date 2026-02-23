@@ -1865,6 +1865,7 @@ html.theme-transitioning *::after {
   flex: 1;
 }
 
+.ai-persona-select,
 .ai-model-select {
   background: var(--surface-3);
   border: 1px solid var(--border-default);
@@ -1872,17 +1873,21 @@ html.theme-transitioning *::after {
   color: var(--text-secondary);
   font-size: 11px;
   padding: 2px 6px;
-  max-width: 180px;
   cursor: pointer;
   outline: none;
   transition: border-color var(--transition-fast);
 }
 
+.ai-persona-select { max-width: 140px; }
+.ai-model-select { max-width: 180px; }
+
+.ai-persona-select:focus,
 .ai-model-select:focus {
   border-color: var(--accent-primary);
   color: var(--text-primary);
 }
 
+.ai-persona-select:hover,
 .ai-model-select:hover {
   border-color: var(--border-hover);
   color: var(--text-primary);
