@@ -1,7 +1,7 @@
 import { t } from '../i18n/index';
 import type { EditorAdapter } from '../editor/editor-interface';
-import { isPuterLoaded, chatStream, signIn, getModel, setModel, listModels, FAVORITE_MODELS } from '../ai/provider';
-import type { ChatMessage, AIModel } from '../ai/provider';
+import { isPuterLoaded, chatStream, signIn, getModel, setModel, listModels, getFavoriteModels, getProviderType, setProviderType, getApiKey, setApiKey } from '../ai/provider';
+import type { ChatMessage, AIModel, AIProviderType } from '../ai/provider';
 import { buildSystemPrompt } from '../ai/context';
 import { PERSONAS, getPersona, setPersona } from '../ai/personas';
 
@@ -91,16 +91,15 @@ export class AIAssistantPanel {
   }
 
   public render(): void {
-    if (!isPuterLoaded()) {
+    const provider = getProviderType();
+    if (provider === 'puter' && !isPuterLoaded()) {
       this.renderUnavailable();
       return;
     }
-    // Puter.js v2 handles authentication automatically (temporary user sessions).
-    // No explicit sign-in gate is needed — ai.chat() will prompt if required.
     this.renderChat();
 
-    // Load model list in the background (non-blocking)
-    if (!this.modelsLoaded) {
+    // Load model list in the background (only needed for Puter)
+    if (!this.modelsLoaded && provider === 'puter') {
       this.loadModelList();
     }
   }
@@ -168,6 +167,7 @@ export class AIAssistantPanel {
           ${modelSelectHtml}
           <div class="ai-header-spacer"></div>
           ${clearBtnHtml}
+          <button class="ai-settings-btn" id="ai-settings-btn" title="${esc(t('ai.settings'))}">&#9881;</button>
         </div>
         <div class="ai-messages" id="ai-messages">
           ${messagesHtml}
@@ -188,10 +188,11 @@ export class AIAssistantPanel {
 
   private buildModelSelectHtml(): string {
     const currentModel = getModel();
+    const favorites = getFavoriteModels();
 
     // Build favorites options
     let optionsHtml = `<optgroup label="${esc(t('ai.model_favorites'))}">`;
-    for (const m of FAVORITE_MODELS) {
+    for (const m of favorites) {
       const selected = m.id === currentModel ? ' selected' : '';
       optionsHtml += `<option value="${esc(m.id)}"${selected}>${esc(m.name)}</option>`;
     }
@@ -222,7 +223,7 @@ export class AIAssistantPanel {
 
     // If current model isn't in favorites or allModels, add it as a standalone option
     const allKnownIds = new Set([
-      ...FAVORITE_MODELS.map((m) => m.id),
+      ...favorites.map((m) => m.id),
       ...this.allModels.map((m) => m.id),
     ]);
     if (!allKnownIds.has(currentModel)) {
@@ -336,6 +337,12 @@ export class AIAssistantPanel {
       this.streamingContent = '';
       this.isLoading = false;
       this.render();
+    });
+
+    // Settings button
+    const settingsBtn = document.getElementById('ai-settings-btn');
+    settingsBtn?.addEventListener('click', () => {
+      this.showSettingsModal();
     });
 
     input?.focus();
@@ -454,6 +461,87 @@ export class AIAssistantPanel {
     });
 
     this.scrollToBottom();
+  }
+
+  /* ── Settings modal ─────────────────────────────────────── */
+
+  private showSettingsModal(): void {
+    const currentProvider = getProviderType();
+    const openaiKey = getApiKey('openai');
+    const geminiKey = getApiKey('gemini');
+
+    const overlay = document.createElement('div');
+    overlay.className = 'ai-settings-overlay';
+    overlay.innerHTML = `
+      <div class="ai-settings-modal">
+        <h3>${esc(t('ai.provider_label'))}</h3>
+        <div class="ai-provider-options">
+          <label class="ai-provider-option">
+            <input type="radio" name="ai-provider" value="puter"${currentProvider === 'puter' ? ' checked' : ''}>
+            <span>${esc(t('ai.provider_puter'))}</span>
+          </label>
+          <label class="ai-provider-option">
+            <input type="radio" name="ai-provider" value="openai"${currentProvider === 'openai' ? ' checked' : ''}>
+            <span>${esc(t('ai.provider_openai'))}</span>
+          </label>
+          <div class="ai-key-row" id="ai-key-openai" style="display:${currentProvider === 'openai' ? 'flex' : 'none'}">
+            <input type="password" class="ai-settings-input" id="ai-key-openai-input" placeholder="sk-..." value="${esc(openaiKey)}">
+          </div>
+          <label class="ai-provider-option">
+            <input type="radio" name="ai-provider" value="gemini"${currentProvider === 'gemini' ? ' checked' : ''}>
+            <span>${esc(t('ai.provider_gemini'))}</span>
+          </label>
+          <div class="ai-key-row" id="ai-key-gemini" style="display:${currentProvider === 'gemini' ? 'flex' : 'none'}">
+            <input type="password" class="ai-settings-input" id="ai-key-gemini-input" placeholder="AIzaSy..." value="${esc(geminiKey)}">
+          </div>
+        </div>
+        <div class="ai-settings-actions">
+          <button class="ai-settings-cancel" id="ai-settings-cancel">${esc(t('ai.settings_cancel'))}</button>
+          <button class="ai-settings-save" id="ai-settings-save">${esc(t('ai.settings_save'))}</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    // Show/hide key inputs on radio change
+    overlay.querySelectorAll<HTMLInputElement>('input[name="ai-provider"]').forEach((radio) => {
+      radio.addEventListener('change', () => {
+        const selected = radio.value;
+        const openaiRow = overlay.querySelector('#ai-key-openai') as HTMLElement;
+        const geminiRow = overlay.querySelector('#ai-key-gemini') as HTMLElement;
+        openaiRow.style.display = selected === 'openai' ? 'flex' : 'none';
+        geminiRow.style.display = selected === 'gemini' ? 'flex' : 'none';
+      });
+    });
+
+    // Cancel
+    overlay.querySelector('#ai-settings-cancel')?.addEventListener('click', () => {
+      overlay.remove();
+    });
+
+    // Click outside modal to close
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) overlay.remove();
+    });
+
+    // Save
+    overlay.querySelector('#ai-settings-save')?.addEventListener('click', () => {
+      const selected = overlay.querySelector<HTMLInputElement>('input[name="ai-provider"]:checked')?.value as AIProviderType;
+      const newOpenaiKey = (overlay.querySelector('#ai-key-openai-input') as HTMLInputElement)?.value.trim() || '';
+      const newGeminiKey = (overlay.querySelector('#ai-key-gemini-input') as HTMLInputElement)?.value.trim() || '';
+
+      setProviderType(selected);
+      setApiKey('openai', newOpenaiKey);
+      setApiKey('gemini', newGeminiKey);
+
+      overlay.remove();
+
+      // Reset model list and re-render with new provider's models
+      this.modelsLoaded = false;
+      this.allModels = [];
+      this.render();
+    });
   }
 
   /* ── Helpers ──────────────────────────────────────────── */

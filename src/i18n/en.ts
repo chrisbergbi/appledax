@@ -253,4 +253,15 @@ export const en: Record<string, string> = {
   'ai.prompt_explain': 'Explain what the current DAX code in the editor does, step by step.',
   'ai.prompt_optimize': 'Suggest performance optimizations for the current DAX code.',
   'ai.prompt_fix': 'Fix the issues identified in the diagnostics and explain what was wrong.',
+
+  // AI Settings (BYOK)
+  'ai.settings': 'Settings',
+  'ai.provider_label': 'AI Provider',
+  'ai.provider_puter': 'Puter (Free)',
+  'ai.provider_openai': 'OpenAI',
+  'ai.provider_gemini': 'Google Gemini',
+  'ai.api_key_label': 'API Key',
+  'ai.api_key_placeholder': 'Paste your API key...',
+  'ai.settings_save': 'Save',
+  'ai.settings_cancel': 'Cancel',
 };

@@ -253,4 +253,15 @@ export const nl: Record<string, string> = {
   'ai.prompt_explain': 'Leg stap voor stap uit wat de huidige DAX-code in de editor doet.',
   'ai.prompt_optimize': 'Stel prestatieoptimalisaties voor voor de huidige DAX-code.',
   'ai.prompt_fix': 'Los de problemen op die in de diagnostiek zijn geïdentificeerd en leg uit wat er mis was.',
+
+  // AI Instellingen (BYOK)
+  'ai.settings': 'Instellingen',
+  'ai.provider_label': 'AI Provider',
+  'ai.provider_puter': 'Puter (Gratis)',
+  'ai.provider_openai': 'OpenAI',
+  'ai.provider_gemini': 'Google Gemini',
+  'ai.api_key_label': 'API Sleutel',
+  'ai.api_key_placeholder': 'Plak je API sleutel...',
+  'ai.settings_save': 'Opslaan',
+  'ai.settings_cancel': 'Annuleren',
 };

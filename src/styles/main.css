@@ -1918,6 +1918,127 @@ html.theme-transitioning *::after {
   background: var(--surface-3);
 }
 
+.ai-settings-btn {
+  background: none;
+  border: 1px solid var(--border-default);
+  color: var(--text-tertiary);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+  line-height: 1;
+}
+
+.ai-settings-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+  background: var(--surface-3);
+}
+
+.ai-settings-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.ai-settings-modal {
+  background: var(--surface-1);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  min-width: 340px;
+  max-width: 420px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.ai-settings-modal h3 {
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.ai-provider-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.ai-provider-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.ai-provider-option input[type="radio"] {
+  accent-color: var(--accent-primary);
+}
+
+.ai-key-row {
+  display: flex;
+  padding-left: 24px;
+}
+
+.ai-settings-input {
+  flex: 1;
+  background: var(--surface-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+.ai-settings-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+.ai-settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.ai-settings-cancel,
+.ai-settings-save {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 6px 16px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ai-settings-cancel {
+  background: none;
+  color: var(--text-secondary);
+}
+
+.ai-settings-cancel:hover {
+  background: var(--surface-3);
+  color: var(--text-primary);
+}
+
+.ai-settings-save {
+  background: var(--accent-primary);
+  color: #fff;
+  border-color: var(--accent-primary);
+}
+
+.ai-settings-save:hover {
+  filter: brightness(1.1);
+}
+
 .ai-messages {
   flex: 1;
   overflow-y: auto;
