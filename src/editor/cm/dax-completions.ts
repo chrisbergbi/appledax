@@ -49,8 +49,7 @@ function getEnclosingFunction(text: string): string | null {
   return null;
 }
 
-function extractVarNames(doc: string, upToPos: number): string[] {
-  const textBefore = doc.slice(0, upToPos);
+function extractVarNames(textBefore: string): string[] {
   const vars: string[] = [];
   const re = /\bVAR\s+(\w+)\s*=/gi;
   let match;
@@ -207,7 +206,7 @@ export function daxCompletionSource(context: CompletionContext): CompletionResul
   }
 
   // VAR variable suggestions
-  const varNames = extractVarNames(doc.toString(), pos);
+  const varNames = extractVarNames(doc.sliceString(0, pos));
   for (const v of varNames) {
     options.push({
       label: v,

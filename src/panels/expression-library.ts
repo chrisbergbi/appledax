@@ -50,7 +50,10 @@ function esc(text: string): string {
 
 /* ── IndexedDB helpers ──────────────────────────────────────── */
 
+let _cachedDB: IDBDatabase | null = null;
+
 function openDB(): Promise<IDBDatabase> {
+  if (_cachedDB) return Promise.resolve(_cachedDB);
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = () => {
@@ -59,7 +62,11 @@ function openDB(): Promise<IDBDatabase> {
         db.createObjectStore(DB_STORE);
       }
     };
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      _cachedDB = req.result;
+      _cachedDB.addEventListener('close', () => { _cachedDB = null; });
+      resolve(_cachedDB);
+    };
     req.onerror = () => reject(req.error);
   });
 }

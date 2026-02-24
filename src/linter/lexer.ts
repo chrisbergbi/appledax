@@ -40,69 +40,61 @@ export function tokenize(source: string): Token[] {
   while (pos < len) {
     const startLine = line;
     const startCol = col;
+    const startPos = pos;
     const ch = peek();
 
     // Whitespace
     if (/\s/.test(ch)) {
-      let ws = '';
       while (pos < len && /\s/.test(peek())) {
-        ws += advance();
+        advance();
       }
-      pushToken(TokenType.Whitespace, ws, startLine, startCol);
+      pushToken(TokenType.Whitespace, source.slice(startPos, pos), startLine, startCol);
       continue;
     }
 
     // Line comment //
     if (ch === '/' && peek(1) === '/') {
-      let comment = '';
       while (pos < len && peek() !== '\n') {
-        comment += advance();
+        advance();
       }
-      pushToken(TokenType.LineComment, comment, startLine, startCol);
+      pushToken(TokenType.LineComment, source.slice(startPos, pos), startLine, startCol);
       continue;
     }
 
     // Block comment /* */
     if (ch === '/' && peek(1) === '*') {
-      let comment = advance() + advance(); // /*
-      let closed = false;
+      advance(); advance(); // /*
       while (pos < len) {
         if (peek() === '*' && peek(1) === '/') {
-          comment += advance() + advance(); // */
-          closed = true;
+          advance(); advance(); // */
           break;
         }
-        comment += advance();
+        advance();
       }
-      if (!closed) {
-        // Unterminated block comment — still emit the token
-        pushToken(TokenType.BlockComment, comment, startLine, startCol);
-      } else {
-        pushToken(TokenType.BlockComment, comment, startLine, startCol);
-      }
+      pushToken(TokenType.BlockComment, source.slice(startPos, pos), startLine, startCol);
       continue;
     }
 
     // Date literal dt"..."
     if (ch === 'd' && peek(1) === 't' && peek(2) === '"') {
-      let lit = advance() + advance() + advance(); // dt"
+      advance(); advance(); advance(); // dt"
       while (pos < len && peek() !== '"') {
-        lit += advance();
+        advance();
       }
-      if (pos < len) lit += advance(); // closing "
-      pushToken(TokenType.DateLiteral, lit, startLine, startCol);
+      if (pos < len) advance(); // closing "
+      pushToken(TokenType.DateLiteral, source.slice(startPos, pos), startLine, startCol);
       continue;
     }
 
     // String "..."
     if (ch === '"') {
-      let str = advance(); // opening "
+      advance(); // opening "
       while (pos < len) {
         if (peek() === '"') {
-          str += advance();
+          advance();
           // Check for escaped ""
           if (peek() === '"') {
-            str += advance();
+            advance();
             continue;
           }
           break;
@@ -111,73 +103,72 @@ export function tokenize(source: string): Token[] {
           // Unterminated string at newline — stop here
           break;
         }
-        str += advance();
+        advance();
       }
-      pushToken(TokenType.String, str, startLine, startCol);
+      pushToken(TokenType.String, source.slice(startPos, pos), startLine, startCol);
       continue;
     }
 
     // Table reference '...'
     if (ch === "'") {
-      let ref = advance(); // opening '
+      advance(); // opening '
       while (pos < len) {
         if (peek() === "'") {
-          ref += advance();
+          advance();
           // Check for escaped ''
           if (peek() === "'") {
-            ref += advance();
+            advance();
             continue;
           }
           break;
         }
         if (peek() === '\n') break; // unterminated
-        ref += advance();
+        advance();
       }
-      pushToken(TokenType.TableRef, ref, startLine, startCol);
+      pushToken(TokenType.TableRef, source.slice(startPos, pos), startLine, startCol);
       continue;
     }
 
     // Column/Measure reference [...]
     if (ch === '[') {
-      let ref = advance(); // [
+      advance(); // [
       while (pos < len && peek() !== ']') {
         if (peek() === '\n') break; // unterminated
-        ref += advance();
+        advance();
       }
-      if (pos < len && peek() === ']') ref += advance(); // ]
-      pushToken(TokenType.ColumnRef, ref, startLine, startCol);
+      if (pos < len && peek() === ']') advance(); // ]
+      pushToken(TokenType.ColumnRef, source.slice(startPos, pos), startLine, startCol);
       continue;
     }
 
     // Numbers
     if (/\d/.test(ch)) {
-      let num = '';
       while (pos < len && /\d/.test(peek())) {
-        num += advance();
+        advance();
       }
       if (peek() === '.' && /\d/.test(peek(1))) {
-        num += advance(); // .
+        advance(); // .
         while (pos < len && /\d/.test(peek())) {
-          num += advance();
+          advance();
         }
       }
       if (peek().toLowerCase() === 'e') {
-        num += advance(); // e/E
-        if (peek() === '+' || peek() === '-') num += advance();
+        advance(); // e/E
+        if (peek() === '+' || peek() === '-') advance();
         while (pos < len && /\d/.test(peek())) {
-          num += advance();
+          advance();
         }
       }
-      pushToken(TokenType.Number, num, startLine, startCol);
+      pushToken(TokenType.Number, source.slice(startPos, pos), startLine, startCol);
       continue;
     }
 
     // Identifiers, keywords, functions
     if (/[a-zA-Z_]/.test(ch)) {
-      let id = '';
       while (pos < len && /[a-zA-Z0-9_]/.test(peek())) {
-        id += advance();
+        advance();
       }
+      const id = source.slice(startPos, pos);
       const upper = id.toUpperCase();
       let type: TokenType;
       if (FUNCTIONS.has(upper)) {
