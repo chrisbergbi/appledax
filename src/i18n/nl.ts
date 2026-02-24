@@ -246,6 +246,7 @@ export const nl: Record<string, string> = {
   'ai.persona_label': 'Persona',
   'ai.persona_dax_expert': 'DAX Expert',
   'ai.persona_hr_mentor': 'HR-Mentor',
+  'ai.persona_data_model_info': 'Datamodel Info',
   'ai.model_label': 'Model',
   'ai.model_loading': 'Modellen laden...',
   'ai.model_favorites': 'Aanbevolen',

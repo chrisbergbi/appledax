@@ -246,6 +246,7 @@ export const en: Record<string, string> = {
   'ai.persona_label': 'Persona',
   'ai.persona_dax_expert': 'DAX Expert',
   'ai.persona_hr_mentor': 'HR-Mentor',
+  'ai.persona_data_model_info': 'Data Model Info',
   'ai.model_label': 'Model',
   'ai.model_loading': 'Loading models...',
   'ai.model_favorites': 'Recommended',

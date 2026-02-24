@@ -53,17 +53,14 @@ export interface ChatMessage {
 
 /* ── Constants ─────────────────────────────────────────── */
 
-const DEFAULT_MODEL = 'gpt-4o-mini';
+const DEFAULT_MODEL = 'gpt-5-nano';
 const STORAGE_KEY = 'appledax-ai-model';
 
-/** Curated list of recommended models shown at the top of the selector. */
+/** Curated list of recommended (free) models shown at the top of the selector. */
 export const FAVORITE_MODELS: AIModel[] = [
-  { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'openai' },
-  { id: 'gpt-4o', name: 'GPT-4o', provider: 'openai' },
-  { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6', provider: 'anthropic' },
-  { id: 'claude-opus-4-6', name: 'Claude Opus 4.6', provider: 'anthropic' },
-  { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite', provider: 'google' },
-  { id: 'deepseek-r1', name: 'DeepSeek R1', provider: 'deepseek' },
+  { id: 'deepseek-v3', name: 'DeepSeek V3', provider: 'deepseek' },
+  { id: 'gpt-5-nano', name: 'GPT-5 Nano', provider: 'openai' },
+  { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash', provider: 'google' },
 ];
 
 /* ── Model management ──────────────────────────────────── */
