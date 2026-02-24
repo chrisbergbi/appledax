@@ -73,10 +73,38 @@ Items are roughly ordered by priority within each category.
 
 ---
 
+## AI Assistant
+
+- [ ] **Show only free models in AI model selector**
+  Currently `FAVORITE_MODELS` in `src/ai/provider.ts` includes paid models (gpt-4o, claude-sonnet-4-6, claude-opus-4-6, deepseek-r1) alongside free ones (gpt-4o-mini, gemini-2.5-flash-lite). The full dynamic model list from Puter.js also mixes free and paid. Filter the model selector to only show models available without payment, or add a toggle/filter to hide paid models.
+  `Effort: Low`
+
+- [ ] **Add "Data Model Info" persona/prompt**
+  Add a new persona in `src/ai/personas.ts` (alongside existing `dax-expert` and `hr-mentor`) focused on answering questions about the loaded data model — tables, columns, data types, relationships, and cardinality. The prompt should instruct the AI to use the injected model context to explain structure, suggest joins, and clarify column meanings. Register it in the persona selector with an i18n display name.
+  `Effort: Low`
+
+---
+
+## Model Browser
+
+- [ ] **Improve model browser: translations, comments, and overview**
+  The model browser (`src/panels/model-browser.ts`) currently shows tables, columns (with data types), measures (expression on hover), and relationships (with path). Improve by: (1) displaying translation properties when present in the model, (2) showing description/comment fields for tables, columns, and measures, and (3) improving the general overview layout — e.g. relationship cardinality, column visibility/hidden status, and clearer grouping.
+  `Effort: Medium`
+
+---
+
 ## UI / Layout
 
 - [ ] **Move AI assistant panel to the right side**
   The AI assistant panel currently renders in the left drawer alongside the other panels. Reposition it to a dedicated right-side panel so it can be open simultaneously with other panels (model browser, function help, etc.), giving a more natural chat-on-the-right layout.
+  `Effort: Medium`
+
+---
+
+## Expression Library
+
+- [ ] **Add 18 pre-built DAX templates to the expression library**
+  Based on analysis of 26,610 real-world expressions from 399 customers, add 18 curated templates covering the most common use cases: Payroll Result by Code, Sickness Case Count, Period/Date Filter, Headcount, Salary/Daily Wage, FTE Percentage, Turnover Percentage, Jubilee/Anniversary Detection, Value Mapping (SWITCH), Function/Scale Comparison, Custom Field Sum per Person, Previous Period Comparison, Journal Cost Center Padding, Name with Vacancy Display, Leave Deduction, Pension Cap Check, Org Unit Classification, and Service Tenure Rate. All templates follow DAX best practices (VAR/RETURN, DIVIDE, REMOVEFILTERS, KEEPFILTERS, SWITCH(TRUE())). Source: `Advanced Expressions Analysis.md` section 3.
   `Effort: Medium`
 
 ---
