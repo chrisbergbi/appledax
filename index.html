@@ -59,8 +59,8 @@
           <span class="breadcrumb-title" id="breadcrumb-name" data-i18n="app.untitled">Untitled measure</span>
         </div>
         <div id="editor-actions">
-          <button id="btn-format" data-i18n="app.btn_format" data-i18n-title="app.btn_format_title" title="Format DAX (Shift+Alt+F)">Format</button>
-          <button id="btn-copy" data-i18n="app.btn_copy" data-i18n-title="app.btn_copy_title" title="Copy formatted DAX">Copy</button>
+          <button id="btn-format" data-icon="&#9998;" data-i18n="app.btn_format" data-i18n-title="app.btn_format_title" title="Format DAX (Shift+Alt+F)">Format</button>
+          <button id="btn-copy" data-icon="&#128203;" data-i18n="app.btn_copy" data-i18n-title="app.btn_copy_title" title="Copy formatted DAX">Copy</button>
         </div>
       </div>
 
@@ -108,6 +108,9 @@
         <div id="ai-assistant-panel" class="sidebar-panel active"></div>
       </div>
     </aside>
+
+    <!-- Sidebar backdrop (visible on tablet/mobile when a sidebar is open) -->
+    <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
 
     <!-- Floating AI button (visible when AI sidebar is closed) -->
     <button id="ai-fab" class="hidden" title="Open AI Assistant">

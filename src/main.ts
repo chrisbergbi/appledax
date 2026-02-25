@@ -135,6 +135,11 @@ const sidebarTabs = document.querySelectorAll<HTMLElement>('#left-sidebar-tabs .
 let activeLeftPanel: string | null = null;
 let lastLeftPanel: string = 'model-browser';
 
+/** Check if viewport is at tablet/mobile breakpoint */
+function isSmallScreen(): boolean {
+  return window.matchMedia('(max-width: 1024px)').matches;
+}
+
 function switchLeftPanel(panelId: string): void {
   // Activate the correct panel content
   document.querySelectorAll('#left-sidebar-content .sidebar-panel').forEach((p) => p.classList.remove('active'));
@@ -144,6 +149,11 @@ function switchLeftPanel(panelId: string): void {
   leftSidebar.classList.remove('collapsed');
   app.classList.remove('left-collapsed');
   activeLeftPanel = panelId;
+
+  // On small screens, only one sidebar at a time
+  if (isSmallScreen() && !app.classList.contains('right-collapsed')) {
+    closeRightSidebar();
+  }
   lastLeftPanel = panelId;
 
   // Sync activity bar highlights
@@ -233,6 +243,11 @@ function openRightSidebar(): void {
   app.classList.remove('right-collapsed');
   aiFab.classList.add('hidden');
   localStorage.setItem(RIGHT_SIDEBAR_KEY, 'open');
+
+  // On small screens, only one sidebar at a time
+  if (isSmallScreen() && activeLeftPanel) {
+    closeLeftSidebar();
+  }
 }
 
 function closeRightSidebar(): void {
@@ -253,6 +268,13 @@ if (savedRightSidebar === 'closed') {
   openRightSidebar();
 }
 
+/* ── Sidebar backdrop (click-to-close on small screens) */
+const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+sidebarBackdrop?.addEventListener('click', () => {
+  if (activeLeftPanel) closeLeftSidebar();
+  if (!app.classList.contains('right-collapsed')) closeRightSidebar();
+});
+
 /* ── Sidebar resize handles ──────────────────────────── */
 function setupSidebarResize(
   handleId: string,
@@ -268,33 +290,55 @@ function setupSidebarResize(
   let startX = 0;
   let startWidth = 0;
 
-  handle.addEventListener('mousedown', (e) => {
+  function startDrag(x: number): void {
     isDragging = true;
-    startX = e.clientX;
+    startX = x;
     const current = parseInt(getComputedStyle(document.documentElement).getPropertyValue(cssVar)) || (side === 'left' ? 280 : 360);
     startWidth = current;
-    handle.classList.add('dragging');
+    handle!.classList.add('dragging');
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
-    e.preventDefault();
-  });
+  }
 
-  document.addEventListener('mousemove', (e) => {
+  function moveDrag(x: number): void {
     if (!isDragging) return;
     const delta = side === 'left'
-      ? e.clientX - startX
-      : startX - e.clientX;
+      ? x - startX
+      : startX - x;
     const newWidth = Math.max(min, Math.min(startWidth + delta, max));
     document.documentElement.style.setProperty(cssVar, newWidth + 'px');
-  });
+  }
 
-  document.addEventListener('mouseup', () => {
+  function endDrag(): void {
     if (!isDragging) return;
     isDragging = false;
-    handle.classList.remove('dragging');
+    handle!.classList.remove('dragging');
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
+  }
+
+  // Mouse events
+  handle.addEventListener('mousedown', (e) => {
+    startDrag(e.clientX);
+    e.preventDefault();
   });
+  document.addEventListener('mousemove', (e) => moveDrag(e.clientX));
+  document.addEventListener('mouseup', endDrag);
+
+  // Touch events
+  handle.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 1) {
+      startDrag(e.touches[0].clientX);
+      e.preventDefault();
+    }
+  }, { passive: false });
+  document.addEventListener('touchmove', (e) => {
+    if (isDragging && e.touches.length === 1) {
+      moveDrag(e.touches[0].clientX);
+    }
+  });
+  document.addEventListener('touchend', endDrag);
+  document.addEventListener('touchcancel', endDrag);
 }
 
 setupSidebarResize('left-resize-handle', 'left', '--left-sidebar-width', 200, 500);

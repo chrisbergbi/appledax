@@ -79,6 +79,12 @@
   --left-resize-width: 4px;
   --right-resize-width: 4px;
   --right-sidebar-width: 360px;
+
+  /* Responsive */
+  --sidebar-overlay-width: 320px;
+  --bottom-bar-height: 56px;
+  --backdrop-bg: rgba(0, 0, 0, 0.45);
+  --sidebar-transition: transform 250ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* === Light Theme === */
@@ -773,6 +779,18 @@ html, body {
 
 #ai-fab.hidden {
   display: none !important;
+}
+
+/* === Sidebar Backdrop (tablet/mobile overlays) === */
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: var(--backdrop-bg);
+  z-index: 39;
+  opacity: 0;
+  transition: opacity 200ms ease;
+  pointer-events: none;
 }
 
 /* === Welcome Overlay === */
@@ -1933,27 +1951,403 @@ html.theme-transitioning *::after {
               box-shadow 0.3s ease !important;
 }
 
-/* === Responsive === */
-@media (max-width: 900px) {
-  #app {
-    --left-sidebar-width: 0px;
-    --right-sidebar-width: 0px;
-  }
-  #app #left-sidebar,
-  #app #left-resize-handle,
-  #app #right-sidebar,
-  #app #right-resize-handle {
-    display: none;
-  }
-}
+/* ================================================ */
+/* === RESPONSIVE: Tablet (768px – 1024px)      === */
+/* ================================================ */
+@media (max-width: 1024px) {
 
-@media (max-width: 600px) {
+  /* Grid: 2 columns only (activity bar + main) */
+  #app {
+    grid-template-columns: var(--activity-bar-width) 1fr;
+    --left-sidebar-width: 0px;
+    --left-resize-width: 0px;
+    --right-sidebar-width: 0px;
+    --right-resize-width: 0px;
+  }
+
+  /* Hide resize handles */
+  #left-resize-handle,
+  #right-resize-handle {
+    display: none !important;
+  }
+
+  /* Activity bar stays in grid column 1 */
+  #activity-bar { grid-column: 1; grid-row: 1; }
+  #main-area    { grid-column: 2; grid-row: 1; }
+
+  /* Left sidebar: fixed overlay from left */
+  #left-sidebar {
+    display: flex !important;
+    position: fixed;
+    top: 0;
+    left: var(--activity-bar-width);
+    bottom: 0;
+    width: var(--sidebar-overlay-width);
+    z-index: 40;
+    transform: translateX(-100%);
+    transition: var(--sidebar-transition);
+    box-shadow: none;
+    grid-column: unset;
+  }
+
+  #app:not(.left-collapsed) #left-sidebar {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
+  }
+
+  #app.left-collapsed #left-sidebar {
+    display: flex !important;
+    transform: translateX(-100%);
+  }
+
+  /* Right sidebar: fixed overlay from right */
+  #right-sidebar {
+    display: flex !important;
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: var(--sidebar-overlay-width);
+    z-index: 40;
+    transform: translateX(100%);
+    transition: var(--sidebar-transition);
+    box-shadow: none;
+    grid-column: unset;
+    border-left: 1px solid var(--border-default);
+  }
+
+  #app:not(.right-collapsed) #right-sidebar {
+    transform: translateX(0);
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.3);
+  }
+
+  #app.right-collapsed #right-sidebar {
+    display: flex !important;
+    transform: translateX(100%);
+  }
+
+  /* Backdrop when either sidebar is open */
+  #app:not(.left-collapsed) .sidebar-backdrop,
+  #app:not(.right-collapsed) .sidebar-backdrop {
+    display: block;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* FAB adjustments */
+  #ai-fab {
+    bottom: 16px;
+    right: 16px;
+  }
+
+  /* Touch-friendly activity bar buttons */
+  .ab-btn {
+    min-height: 48px;
+  }
+
+  /* Editor header: tighter */
+  #editor-header {
+    padding: 0 12px;
+  }
+
+  /* Welcome overlay: stack templates */
   #welcome-templates {
     flex-direction: column;
   }
 
   #welcome-card {
     padding: 24px 20px;
+  }
+}
+
+/* ================================================ */
+/* === RESPONSIVE: Mobile (<768px)              === */
+/* ================================================ */
+@media (max-width: 767px) {
+
+  /* Grid: single column + bottom bar */
+  #app {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr var(--bottom-bar-height);
+    --left-sidebar-width: 0px;
+    --left-resize-width: 0px;
+    --right-sidebar-width: 0px;
+    --right-resize-width: 0px;
+  }
+
+  /* Hide resize handles */
+  #left-resize-handle,
+  #right-resize-handle {
+    display: none !important;
+  }
+
+  /* Main area fills row 1 */
+  #main-area {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  /* Activity bar: horizontal bottom bar */
+  #activity-bar {
+    grid-column: 1;
+    grid-row: 2;
+    flex-direction: row;
+    border-right: none;
+    border-top: 1px solid var(--border-default);
+    z-index: 45;
+    width: 100%;
+    height: var(--bottom-bar-height);
+    overflow: visible;
+  }
+
+  .ab-top {
+    flex-direction: row;
+    flex: 1;
+    padding-top: 0;
+    justify-content: center;
+    gap: 0;
+  }
+
+  .ab-bottom {
+    flex-direction: row;
+    padding-bottom: 0;
+    gap: 0;
+    align-items: center;
+  }
+
+  .ab-btn {
+    height: 100%;
+    width: auto;
+    min-width: 48px;
+    flex: 1;
+    border-left: none;
+    border-top: 3px solid transparent;
+    border-bottom: none;
+    padding: 0 4px;
+  }
+
+  .ab-btn.active {
+    border-left-color: transparent;
+    border-top-color: var(--accent-primary);
+  }
+
+  /* Left sidebar: full-screen overlay */
+  #left-sidebar {
+    display: flex !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: var(--bottom-bar-height);
+    width: auto;
+    z-index: 40;
+    transform: translateX(-100%);
+    transition: var(--sidebar-transition);
+    box-shadow: none;
+    grid-column: unset;
+  }
+
+  #app:not(.left-collapsed) #left-sidebar {
+    transform: translateX(0);
+  }
+
+  #app.left-collapsed #left-sidebar {
+    display: flex !important;
+    transform: translateX(-100%);
+  }
+
+  /* Right sidebar: full-screen overlay */
+  #right-sidebar {
+    display: flex !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: var(--bottom-bar-height);
+    width: auto;
+    z-index: 40;
+    transform: translateX(100%);
+    transition: var(--sidebar-transition);
+    box-shadow: none;
+    grid-column: unset;
+    border-left: none;
+  }
+
+  #app:not(.right-collapsed) #right-sidebar {
+    transform: translateX(0);
+  }
+
+  #app.right-collapsed #right-sidebar {
+    display: flex !important;
+    transform: translateX(100%);
+  }
+
+  /* Backdrop: leave space for bottom bar */
+  #app:not(.left-collapsed) .sidebar-backdrop,
+  #app:not(.right-collapsed) .sidebar-backdrop {
+    display: block;
+    opacity: 1;
+    pointer-events: auto;
+    bottom: var(--bottom-bar-height);
+  }
+
+  /* FAB: above bottom bar */
+  #ai-fab {
+    bottom: calc(var(--bottom-bar-height) + 16px);
+    right: 16px;
+  }
+
+  /* Editor header: compact */
+  #editor-header {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 38px;
+    padding: 6px 12px;
+    gap: 4px;
+  }
+
+  #editor-breadcrumb {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .breadcrumb-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 150px;
+  }
+
+  /* Action buttons: icon-only */
+  #editor-actions button {
+    padding: 6px 10px;
+    font-size: 0;
+    min-width: 36px;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #btn-format::before {
+    content: attr(data-icon);
+    font-size: 14px;
+  }
+
+  #btn-copy::before {
+    content: attr(data-icon);
+    font-size: 14px;
+  }
+
+  /* Status bar: compact */
+  #status-bar {
+    padding: 6px 12px;
+  }
+
+  #status-text {
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: calc(100vw - 60px);
+  }
+
+  /* Welcome overlay */
+  #welcome-templates {
+    flex-direction: column;
+  }
+
+  #welcome-card {
+    padding: 24px 16px;
+    width: 95vw;
+  }
+
+  /* Diagnostics: compact on mobile */
+  #diagnostics-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .diag-tab {
+    padding: 7px 10px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .diag-row {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .diag-location {
+    display: none;
+  }
+
+  /* AI chat header: compact */
+  .ai-chat-header {
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 6px 8px;
+  }
+
+  .ai-persona-select,
+  .ai-model-select {
+    font-size: 10px;
+    max-width: 120px;
+  }
+
+  /* CM hover tooltip: constrain to viewport */
+  .cm-dax-hover {
+    max-width: calc(100vw - 32px);
+  }
+}
+
+/* ================================================ */
+/* === TOUCH DEVICES                            === */
+/* ================================================ */
+@media (pointer: coarse) {
+
+  /* Wider invisible touch target for resize handles */
+  .resize-handle-h {
+    position: relative;
+  }
+
+  .resize-handle-h::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -10px;
+    right: -10px;
+    z-index: 4;
+  }
+
+  /* Minimum tap targets */
+  .sidebar-close {
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .sidebar-tab {
+    min-height: 44px;
+    padding: 10px 16px;
+  }
+
+  #editor-actions button {
+    min-height: 36px;
+    padding: 6px 14px;
+  }
+
+  .diag-tab {
+    min-height: 44px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
   }
 }
 
