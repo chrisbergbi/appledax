@@ -216,7 +216,7 @@ if (oldDrawer) {
 // Restore left sidebar state from localStorage
 const savedLeftPanel = localStorage.getItem(LEFT_PANEL_KEY);
 if (savedLeftPanel) {
-  openLeftSidebar(savedLeftPanel);
+  switchLeftPanel(savedLeftPanel);
 } else {
   // Start collapsed
   closeLeftSidebar();

@@ -3,7 +3,7 @@ import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLi
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { bracketMatching, indentOnInput, syntaxHighlighting, defaultHighlightStyle, foldGutter, foldKeymap } from '@codemirror/language';
 import { autocompletion, closeBrackets, closeBracketsKeymap, acceptCompletion } from '@codemirror/autocomplete';
-import { lintGutter } from '@codemirror/lint';
+import { lintGutter, nextDiagnostic } from '@codemirror/lint';
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
 
 import { daxLanguage } from './dax-language';
@@ -99,6 +99,7 @@ export function createEditor(container: HTMLElement, initialTheme: 'dark' | 'lig
       ...foldKeymap,
       { key: 'Tab', run: acceptCompletion },
       indentWithTab,
+      { key: 'Mod-.', run: nextDiagnostic },
     ]),
     EditorView.lineWrapping,
     EditorState.tabSize.of(4),

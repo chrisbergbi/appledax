@@ -86,7 +86,7 @@ function createActions(diag: LintDiagnostic, doc: { line(n: number): { from: num
         const replaceTo = lineInfo.from + rightEnd;
 
         actions.push({
-          name: `→ DIVIDE(${leftOperand}, ${rightOperand})`,
+          name: `Fix: DIVIDE(${leftOperand}, ${rightOperand})`,
           apply(view) {
             view.dispatch({
               changes: { from: replaceFrom, to: replaceTo, insert: `DIVIDE(${leftOperand}, ${rightOperand})` },
@@ -100,7 +100,7 @@ function createActions(diag: LintDiagnostic, doc: { line(n: number): { from: num
   if (diag.ruleId === 'var-without-return') {
     const insertPos = posToOffset(doc, diag.startLine + 1, 1);
     actions.push({
-      name: '+ Add RETURN',
+      name: 'Fix: Add RETURN',
       apply(view) {
         view.dispatch({
           changes: { from: insertPos, to: insertPos, insert: 'RETURN\n    ' },
@@ -113,7 +113,7 @@ function createActions(diag: LintDiagnostic, doc: { line(n: number): { from: num
   if (diag.quickFix) {
     const qf = diag.quickFix;
     actions.push({
-      name: qf.title,
+      name: `Fix: ${qf.title}`,
       apply(view) {
         const changes = qf.edits.map((edit) => ({
           from: posToOffset(doc, edit.range.startLine, edit.range.startCol),

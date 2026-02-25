@@ -5,7 +5,7 @@
  * Triggered via F2 when cursor is on a VAR name (declaration or usage).
  */
 
-import { type Command, EditorView, keymap, type KeyBinding } from '@codemirror/view';
+import { type Command, keymap, type KeyBinding } from '@codemirror/view';
 import { tokenize } from '../../linter/lexer';
 import { TokenType } from '../../types';
 

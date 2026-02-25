@@ -2286,7 +2286,14 @@ html.theme-transitioning *::after {
   padding: 0;
 }
 
-.ai-insert-btn {
+.ai-code-actions {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.ai-insert-btn,
+.ai-copy-btn {
   background: none;
   border: 1px solid var(--border-default);
   color: var(--text-secondary);
@@ -2294,14 +2301,19 @@ html.theme-transitioning *::after {
   padding: 2px 8px;
   font-size: 11px;
   cursor: pointer;
-  margin-bottom: 4px;
   transition: all 0.15s;
 }
 
-.ai-insert-btn:hover {
+.ai-insert-btn:hover,
+.ai-copy-btn:hover {
   background: var(--surface-4);
   color: var(--text-primary);
   border-color: var(--border-hover);
+}
+
+.ai-copy-btn--copied {
+  color: var(--color-success);
+  border-color: var(--color-success);
 }
 
 /* Loading */
@@ -2372,6 +2384,184 @@ html.theme-transitioning *::after {
   padding: 1px 4px;
   border-radius: 3px;
   font-size: 12px;
+}
+
+/* Tables in AI messages */
+.ai-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 6px 0;
+  font-size: 12px;
+}
+
+.ai-table th,
+.ai-table td {
+  border: 1px solid var(--border-default);
+  padding: 4px 8px;
+  text-align: left;
+}
+
+.ai-table th {
+  background: var(--surface-4);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ai-table td {
+  background: var(--surface-2);
+}
+
+/* Blockquotes */
+.ai-blockquote {
+  border-left: 3px solid var(--accent-primary);
+  padding: 4px 10px;
+  margin: 6px 0;
+  color: var(--text-secondary);
+  background: var(--accent-primary-dim);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+/* Links */
+.ai-link {
+  color: var(--accent-primary);
+  text-decoration: underline;
+  text-decoration-color: var(--accent-primary-dim);
+}
+
+.ai-link:hover {
+  color: var(--accent-primary-hover);
+}
+
+/* Horizontal rules */
+.ai-hr {
+  border: none;
+  border-top: 1px solid var(--border-default);
+  margin: 8px 0;
+}
+
+/* Nested lists */
+.ai-list .ai-list {
+  margin: 2px 0 2px 16px;
+}
+
+/* Strikethrough */
+.ai-msg-assistant del {
+  text-decoration: line-through;
+  color: var(--text-tertiary);
+}
+
+/* Model + token badges */
+.ai-msg-badges {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.ai-token-badge {
+  font-size: 10px;
+  color: var(--text-ghost);
+  font-style: italic;
+}
+
+/* Edit button on user messages */
+.ai-msg-edit-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  float: right;
+  margin: -2px -4px 0 4px;
+}
+
+.ai-msg-user:hover .ai-msg-edit-btn {
+  opacity: 1;
+}
+
+.ai-msg-edit-btn:hover {
+  color: #fff;
+}
+
+/* Edit mode */
+.ai-msg-editing {
+  padding: 6px !important;
+}
+
+.ai-edit-textarea {
+  width: 100%;
+  background: var(--surface-1);
+  color: var(--text-primary);
+  border: 1px solid var(--accent-primary);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 40px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.ai-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.ai-edit-cancel {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.7);
+  border-radius: var(--radius-sm);
+  padding: 3px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ai-edit-cancel:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #fff;
+}
+
+.ai-edit-save {
+  background: var(--accent-primary);
+  border: none;
+  color: #fff;
+  border-radius: var(--radius-sm);
+  padding: 3px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.ai-edit-save:hover {
+  background: var(--accent-primary-hover);
+}
+
+/* Regenerate button */
+.ai-regen-btn {
+  background: none;
+  border: 1px solid var(--border-default);
+  color: var(--text-tertiary);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  margin-top: 4px;
+  transition: all 0.15s;
+  display: inline-block;
+}
+
+.ai-regen-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+  background: var(--surface-4);
 }
 
 /* Input area */

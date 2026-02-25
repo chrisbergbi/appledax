@@ -47,6 +47,16 @@ export interface ChatMessage {
   content: string;
 }
 
+/** Result from chatStream including optional token usage for BYOK providers */
+export interface ChatStreamResult {
+  text: string;
+  usage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+}
+
 /* ── Provider types ───────────────────────────────────── */
 
 export type AIProviderType = 'puter' | 'openai' | 'gemini';
@@ -205,7 +215,7 @@ export async function signIn(): Promise<void> {
 export async function chatStream(
   messages: ChatMessage[],
   onChunk: (text: string) => void,
-): Promise<string> {
+): Promise<ChatStreamResult> {
   const provider = getProviderType();
 
   if (provider === 'openai') {
@@ -220,7 +230,7 @@ export async function chatStream(
     return chatStreamGemini(messages, key, onChunk);
   }
 
-  // Default: Puter.js
+  // Default: Puter.js (free — no usage tracking)
   if (!isPuterLoaded()) {
     throw new Error('Puter.js is not loaded');
   }
@@ -228,7 +238,8 @@ export async function chatStream(
   const model = getModel();
   try {
     const result = window.puter!.ai.chat(messages, { model, stream: true });
-    return await consumeResponse(result, onChunk);
+    const text = await consumeResponse(result, onChunk);
+    return { text };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     if (msg.toLowerCase().includes('auth') || msg.toLowerCase().includes('sign')) {
@@ -290,7 +301,7 @@ async function chatStreamOpenAI(
   messages: ChatMessage[],
   apiKey: string,
   onChunk: (text: string) => void,
-): Promise<string> {
+): Promise<ChatStreamResult> {
   const model = getModel();
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -299,7 +310,7 @@ async function chatStreamOpenAI(
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({ model, messages, stream: true }),
+    body: JSON.stringify({ model, messages, stream: true, stream_options: { include_usage: true } }),
   });
 
   if (!response.ok) {
@@ -313,11 +324,12 @@ async function chatStreamOpenAI(
 async function readSSEStream(
   response: Response,
   onChunk: (text: string) => void,
-): Promise<string> {
+): Promise<ChatStreamResult> {
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
   let fullText = '';
   let buffer = '';
+  let usage: ChatStreamResult['usage'] | undefined;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -340,6 +352,14 @@ async function readSSEStream(
           fullText += delta;
           onChunk(delta);
         }
+        // Capture usage from final chunk
+        if (parsed.usage) {
+          usage = {
+            promptTokens: parsed.usage.prompt_tokens ?? 0,
+            completionTokens: parsed.usage.completion_tokens ?? 0,
+            totalTokens: parsed.usage.total_tokens ?? 0,
+          };
+        }
       } catch {
         // skip malformed JSON
       }
@@ -347,7 +367,7 @@ async function readSSEStream(
   }
 
   if (!fullText) throw new Error('Empty response from OpenAI');
-  return fullText;
+  return { text: fullText, usage };
 }
 
 /* ── Google Gemini REST API ───────────────────────────── */
@@ -356,7 +376,7 @@ async function chatStreamGemini(
   messages: ChatMessage[],
   apiKey: string,
   onChunk: (text: string) => void,
-): Promise<string> {
+): Promise<ChatStreamResult> {
   const model = getModel();
 
   // Convert ChatMessage[] to Gemini format
@@ -392,11 +412,12 @@ async function chatStreamGemini(
 async function readGeminiSSEStream(
   response: Response,
   onChunk: (text: string) => void,
-): Promise<string> {
+): Promise<ChatStreamResult> {
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
   let fullText = '';
   let buffer = '';
+  let usage: ChatStreamResult['usage'] | undefined;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -422,6 +443,14 @@ async function readGeminiSSEStream(
             }
           }
         }
+        // Capture usage metadata (final chunk has cumulative totals)
+        if (parsed.usageMetadata) {
+          usage = {
+            promptTokens: parsed.usageMetadata.promptTokenCount ?? 0,
+            completionTokens: parsed.usageMetadata.candidatesTokenCount ?? 0,
+            totalTokens: parsed.usageMetadata.totalTokenCount ?? 0,
+          };
+        }
       } catch {
         // skip malformed JSON
       }
@@ -429,7 +458,7 @@ async function readGeminiSSEStream(
   }
 
   if (!fullText) throw new Error('Empty response from Gemini');
-  return fullText;
+  return { text: fullText, usage };
 }
 
 /* ── Puter.js response helpers ────────────────────────── */

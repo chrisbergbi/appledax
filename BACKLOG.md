@@ -79,6 +79,10 @@ Items are roughly ordered by priority within each category.
   Currently `FAVORITE_MODELS` in `src/ai/provider.ts` includes paid models (gpt-4o, claude-sonnet-4-6, claude-opus-4-6, deepseek-r1) alongside free ones (gpt-4o-mini, gemini-2.5-flash-lite). The full dynamic model list from Puter.js also mixes free and paid. Filter the model selector to only show models available without payment, or add a toggle/filter to hide paid models.
   `Effort: Low`
 
+- [ ] **Improve AI assistant UI**
+  The AI chat panel (`src/panels/ai-assistant.ts`) works but has room for polish: (1) add a copy-to-clipboard button on code blocks alongside the existing Insert button, (2) expand markdown rendering to support tables, blockquotes, links, and nested lists, (3) add message edit/regenerate so users can refine prompts without retyping, and (4) show a token or cost indicator when using paid BYOK providers (OpenAI, Gemini).
+  `Effort: Medium`
+
 - [ ] **Add "Data Model Info" persona/prompt**
   Add a new persona in `src/ai/personas.ts` (alongside existing `dax-expert` and `hr-mentor`) focused on answering questions about the loaded data model — tables, columns, data types, relationships, and cardinality. The prompt should instruct the AI to use the injected model context to explain structure, suggest joins, and clarify column meanings. Register it in the persona selector with an i18n display name.
   `Effort: Low`
@@ -87,13 +91,29 @@ Items are roughly ordered by priority within each category.
 
 ## Model Browser
 
+- [ ] **Improve model browser UI and usability**
+  The model browser tree view (`src/panels/model-browser.ts`) becomes hard to navigate with large models. Add: (1) a search/filter box at the top to find tables, columns, or measures by name, (2) alphabetical sort option alongside model-order, (3) better handling of long names (tooltip on truncation), and (4) show relationship cardinality (1:N, N:N) and join columns more explicitly. Consider collapsible category groups within tables (columns vs measures vs relationships).
+  `Effort: Medium`
+
 - [ ] **Improve model browser: translations, comments, and overview**
   The model browser (`src/panels/model-browser.ts`) currently shows tables, columns (with data types), measures (expression on hover), and relationships (with path). Improve by: (1) displaying translation properties when present in the model, (2) showing description/comment fields for tables, columns, and measures, and (3) improving the general overview layout — e.g. relationship cardinality, column visibility/hidden status, and clearer grouping.
   `Effort: Medium`
 
 ---
 
+## Editor
+
+- [ ] **Improve DAX autocomplete/autosuggest**
+  The completion source (`src/editor/cm/dax-completions.ts`) offers functions, keywords, columns, measures, and VAR variables with context-aware boosting, but can be improved: (1) track recently used completions and boost them in the suggestion list, (2) show return-type hints (e.g. "returns TABLE", "returns SCALAR") on function completions, (3) add fuzzy matching so partial/out-of-order typing still finds the right function, and (4) for large models with many columns, group or cap suggestions to avoid an overwhelming list.
+  `Effort: Medium`
+
+---
+
 ## UI / Layout
+
+- [ ] **Improve mobile and tablet experience**
+  Below 900px both sidebars are hidden (`display: none`) with no way to reopen them — users lose access to the model browser, expression library, and AI assistant on mobile. Add: (1) a hamburger or bottom-sheet menu to access panels on small screens, (2) a tablet breakpoint (~768px) that shows one sidebar at a time, (3) touch-friendly sizing for resize handles and buttons, and (4) responsive editor header that collapses or wraps toolbar actions on narrow viewports.
+  `Effort: High`
 
 - [ ] **Move AI assistant panel to the right side**
   The AI assistant panel currently renders in the left drawer alongside the other panels. Reposition it to a dedicated right-side panel so it can be open simultaneously with other panels (model browser, function help, etc.), giving a more natural chat-on-the-right layout.

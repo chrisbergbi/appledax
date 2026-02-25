@@ -1,7 +1,7 @@
 import { t } from '../i18n/index';
 import type { EditorAdapter } from '../editor/editor-interface';
 import { isPuterLoaded, chatStream, signIn, getModel, setModel, listModels, getFavoriteModels, getProviderType, setProviderType, getApiKey, setApiKey } from '../ai/provider';
-import type { ChatMessage, AIModel, AIProviderType } from '../ai/provider';
+import type { ChatMessage, AIModel, AIProviderType, ChatStreamResult } from '../ai/provider';
 import { buildSystemPrompt } from '../ai/context';
 import { PERSONAS, getPersona, setPersona } from '../ai/personas';
 
@@ -23,6 +23,68 @@ interface UIMessage {
   rawHtml?: boolean;
   /** Model ID used for this assistant message */
   model?: string;
+  /** Token usage from BYOK providers */
+  usage?: { promptTokens: number; completionTokens: number; totalTokens: number };
+}
+
+/* ── Nested list builder ────────────────────────────────── */
+
+function buildNestedList(block: string): string {
+  const lines = block.split('\n').filter((l) => l.trim());
+  let result = '';
+  let depth = 0;
+  const stack: ('ul' | 'ol')[] = [];
+
+  for (const line of lines) {
+    // Count leading spaces to determine indent level
+    const leadingSpaces = line.match(/^( *)/)?.[1].length ?? 0;
+    const level = Math.floor(leadingSpaces / 2);
+
+    // Determine if ordered or unordered
+    const stripped = line.trimStart();
+    const isOrdered = /^\d+\. /.test(stripped);
+    const content = isOrdered ? stripped.replace(/^\d+\. /, '') : stripped.replace(/^[-*] /, '');
+    const tag = isOrdered ? 'ol' : 'ul';
+
+    if (level > depth) {
+      // Open new nested list(s)
+      while (depth < level) {
+        result += `<${tag} class="ai-list">`;
+        stack.push(tag);
+        depth++;
+      }
+    } else if (level < depth) {
+      // Close nested lists
+      while (depth > level) {
+        const closing = stack.pop() ?? 'ul';
+        result += `</li></${closing}>`;
+        depth--;
+      }
+    }
+
+    // If at same level, close previous item (unless first item)
+    if (result.endsWith('</li>') || result.endsWith('</ul>') || result.endsWith('</ol>')) {
+      // previous item closed naturally
+    }
+
+    result += `<li class="ai-li">${content}`;
+  }
+
+  // Close all remaining open tags
+  while (depth > 0) {
+    const closing = stack.pop() ?? 'ul';
+    result += `</li></${closing}>`;
+    depth--;
+  }
+
+  // Wrap outermost level
+  if (!result.startsWith('<ul') && !result.startsWith('<ol')) {
+    result = `<ul class="ai-list">${result}</li></ul>`;
+  } else {
+    result += '</li>';
+  }
+
+  return result;
 }
 
 /* ── Markdown-like formatter ─────────────────────────────── */
@@ -30,45 +92,121 @@ interface UIMessage {
 function formatMarkdown(raw: string): string {
   let html = esc(raw);
 
-  // Code blocks: ```lang\n...\n```
+  // ── Step 1: Extract code blocks into placeholders ──
+  // This prevents later regex replacements from corrupting code content
+  const codeBlocks: { display: string; raw: string }[] = [];
   html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, (_match, _lang, code) => {
     const trimmedCode = code.trim();
-    // Decode entities back for the data attribute (will be re-escaped by esc())
     const decoded = trimmedCode
       .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
       .replace(/&quot;/g, '"').replace(/&#39;/g, "'");
-    return `<pre class="ai-code-block"><code>${trimmedCode}</code></pre>` +
-      `<button class="ai-insert-btn" data-code="${esc(decoded)}">${esc(t('ai.insert'))}</button>`;
+    const idx = codeBlocks.length;
+    codeBlocks.push({ display: trimmedCode, raw: decoded });
+    return `%%CODEBLOCK_${idx}%%`;
   });
 
-  // Inline code: `...`
-  html = html.replace(/`([^`]+)`/g, '<code class="ai-inline-code">$1</code>');
+  // ── Step 2: Extract inline code into placeholders ──
+  const inlineCodes: string[] = [];
+  html = html.replace(/`([^`]+)`/g, (_match, code) => {
+    const idx = inlineCodes.length;
+    inlineCodes.push(code);
+    return `%%INLINECODE_${idx}%%`;
+  });
 
-  // Bold: **text**
+  // ── Step 3: Tables ──
+  html = html.replace(
+    /((?:^\|.+\|[ ]*$\n?)+)/gm,
+    (tableBlock) => {
+      const rows = tableBlock.trim().split('\n').filter((r) => r.trim());
+      if (rows.length < 2) return tableBlock;
+
+      const isSeparator = /^\|[\s\-:]+(\|[\s\-:]+)+\|?$/.test(rows[1].trim());
+
+      let tableHtml = '<table class="ai-table">';
+      const startIdx = isSeparator ? 2 : 0;
+
+      if (isSeparator && rows.length > 0) {
+        const cells = rows[0].split('|').filter((c) => c.trim() !== '');
+        tableHtml += '<thead><tr>' + cells.map((c) => `<th>${c.trim()}</th>`).join('') + '</tr></thead>';
+      }
+
+      tableHtml += '<tbody>';
+      for (let i = startIdx; i < rows.length; i++) {
+        const cells = rows[i].split('|').filter((c) => c.trim() !== '');
+        tableHtml += '<tr>' + cells.map((c) => `<td>${c.trim()}</td>`).join('') + '</tr>';
+      }
+      tableHtml += '</tbody></table>';
+      return tableHtml;
+    },
+  );
+
+  // ── Step 4: Bold ── **text**
   html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 
-  // Headers at line start: ### or ##
+  // ── Step 5: Italic ── *text* (single asterisk, not part of **)
+  html = html.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
+
+  // ── Step 6: Strikethrough ── ~~text~~
+  html = html.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+
+  // ── Step 7: Links ── [text](url)
+  html = html.replace(
+    /\[([^\]]+)\]\(([^)]+)\)/g,
+    '<a class="ai-link" href="$2" target="_blank" rel="noopener noreferrer">$1</a>',
+  );
+
+  // ── Step 8: Headers ──
   html = html.replace(/^### (.+)$/gm, '<h4 class="ai-h4">$1</h4>');
   html = html.replace(/^## (.+)$/gm, '<h3 class="ai-h3">$1</h3>');
 
-  // Bullet lists: - item or * item
-  html = html.replace(/^[-*] (.+)$/gm, '<li class="ai-li">$1</li>');
+  // ── Step 9: Blockquotes ── > text (> is escaped to &gt; by esc())
+  html = html.replace(
+    /(^&gt; .+$(\n|$))+/gm,
+    (block) => {
+      const content = block.replace(/^&gt; /gm, '').trim();
+      return `<blockquote class="ai-blockquote">${content}</blockquote>`;
+    },
+  );
 
-  // Numbered lists: 1. item
-  html = html.replace(/^\d+\. (.+)$/gm, '<li class="ai-li">$1</li>');
+  // ── Step 10: Horizontal rules ── --- or *** or ___
+  html = html.replace(/^(---|(\*\*\*)|___)$/gm, '<hr class="ai-hr">');
 
-  // Wrap consecutive <li> in <ul>
-  html = html.replace(/((?:<li class="ai-li">[\s\S]*?<\/li>\s*)+)/g, '<ul class="ai-list">$1</ul>');
+  // ── Step 11: Lists (with nesting support) ──
+  html = html.replace(
+    /((?:^[ ]*(?:[-*]|\d+\.) .+$\n?)+)/gm,
+    (block) => buildNestedList(block),
+  );
 
-  // Line breaks
+  // ── Step 12: Line breaks ──
   html = html.replace(/\n/g, '<br>');
 
-  // Clean up <br> after block elements
-  html = html.replace(/<\/pre><br>/g, '</pre>');
+  // ── Step 13: Cleanup <br> after block elements ──
   html = html.replace(/<\/h[34]><br>/g, (m) => m.replace('<br>', ''));
   html = html.replace(/<\/ul><br>/g, '</ul>');
+  html = html.replace(/<\/ol><br>/g, '</ol>');
   html = html.replace(/<\/li><br>/g, '</li>');
   html = html.replace(/<br><ul/g, '<ul');
+  html = html.replace(/<br><ol/g, '<ol');
+  html = html.replace(/<\/table><br>/g, '</table>');
+  html = html.replace(/<\/blockquote><br>/g, '</blockquote>');
+  html = html.replace(/<hr class="ai-hr"><br>/g, '<hr class="ai-hr">');
+
+  // ── Step 14: Re-insert inline code ──
+  html = html.replace(/%%INLINECODE_(\d+)%%/g, (_match, idxStr) => {
+    const idx = parseInt(idxStr, 10);
+    return `<code class="ai-inline-code">${inlineCodes[idx]}</code>`;
+  });
+
+  // ── Step 15: Re-insert code blocks (with Copy + Insert buttons) ──
+  html = html.replace(/(%%CODEBLOCK_(\d+)%%(<br>)?)/g, (_match, _full, idxStr) => {
+    const idx = parseInt(idxStr, 10);
+    const block = codeBlocks[idx];
+    return `<pre class="ai-code-block"><code>${block.display}</code></pre>` +
+      `<div class="ai-code-actions">` +
+      `<button class="ai-copy-btn" data-code="${esc(block.raw)}">${esc(t('ai.copy'))}</button>` +
+      `<button class="ai-insert-btn" data-code="${esc(block.raw)}">${esc(t('ai.insert'))}</button>` +
+      `</div>`;
+  });
 
   return html;
 }
@@ -83,6 +221,7 @@ export class AIAssistantPanel {
   private streamingContent = '';
   private allModels: AIModel[] = [];
   private modelsLoaded = false;
+  private editingIndex: number | null = null;
 
   constructor(editor: EditorAdapter) {
     this.container = document.getElementById('ai-assistant-panel')!;
@@ -131,17 +270,49 @@ export class AIAssistantPanel {
         </div>
       `;
     } else {
-      messagesHtml = this.messages.map((msg) => {
+      messagesHtml = this.messages.map((msg, idx) => {
         const roleClass = msg.role === 'user' ? 'ai-msg-user' : 'ai-msg-assistant';
+        const isLast = idx === this.messages.length - 1;
+
+        // ── User message (with edit support) ──
+        if (msg.role === 'user') {
+          if (this.editingIndex === idx) {
+            return `<div class="ai-msg ai-msg-user ai-msg-editing">
+              <textarea class="ai-edit-textarea" id="ai-edit-textarea">${esc(msg.content)}</textarea>
+              <div class="ai-edit-actions">
+                <button class="ai-edit-cancel">${esc(t('ai.edit_cancel'))}</button>
+                <button class="ai-edit-save">${esc(t('ai.edit_save'))}</button>
+              </div>
+            </div>`;
+          }
+          const editBtn = !this.isLoading
+            ? `<button class="ai-msg-edit-btn" data-idx="${idx}" title="${esc(t('ai.edit'))}">&#9998;</button>`
+            : '';
+          return `<div class="ai-msg ${roleClass}">${editBtn}${esc(msg.content)}</div>`;
+        }
+
+        // ── Assistant message ──
         const content = msg.rawHtml
           ? msg.content
-          : msg.role === 'assistant'
-            ? formatMarkdown(msg.content)
-            : esc(msg.content);
-        const badgeHtml = msg.role === 'assistant' && msg.model && !msg.rawHtml
-          ? `<span class="ai-model-badge">${esc(msg.model)}</span>`
+          : formatMarkdown(msg.content);
+
+        // Badges (model + tokens)
+        let badgesHtml = '';
+        const showModel = msg.model && !msg.rawHtml;
+        const showTokens = msg.usage && !msg.rawHtml;
+        if (showModel || showTokens) {
+          badgesHtml = '<div class="ai-msg-badges">';
+          if (showModel) badgesHtml += `<span class="ai-model-badge">${esc(msg.model!)}</span>`;
+          if (showTokens) badgesHtml += `<span class="ai-token-badge">${msg.usage!.totalTokens} ${esc(t('ai.tokens'))}</span>`;
+          badgesHtml += '</div>';
+        }
+
+        // Regenerate button on last assistant message
+        const regenBtn = isLast && !this.isLoading && !msg.rawHtml
+          ? `<button class="ai-regen-btn">&#8635; ${esc(t('ai.regenerate'))}</button>`
           : '';
-        return `<div class="ai-msg ${roleClass}">${content}${badgeHtml}</div>`;
+
+        return `<div class="ai-msg ${roleClass}">${content}${badgesHtml}${regenBtn}</div>`;
       }).join('');
     }
 
@@ -331,11 +502,92 @@ export class AIAssistantPanel {
       });
     });
 
+    // Copy-to-clipboard buttons
+    this.container.querySelectorAll<HTMLButtonElement>('.ai-copy-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const code = btn.dataset.code;
+        if (code) {
+          try {
+            await navigator.clipboard.writeText(code);
+            const original = btn.textContent;
+            btn.textContent = t('ai.copied');
+            btn.classList.add('ai-copy-btn--copied');
+            setTimeout(() => {
+              btn.textContent = original;
+              btn.classList.remove('ai-copy-btn--copied');
+            }, 1500);
+          } catch {
+            // Clipboard API not available
+          }
+        }
+      });
+    });
+
+    // Edit message buttons
+    this.container.querySelectorAll<HTMLButtonElement>('.ai-msg-edit-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.idx!, 10);
+        if (!isNaN(idx)) {
+          this.editingIndex = idx;
+          this.render();
+          const ta = document.getElementById('ai-edit-textarea') as HTMLTextAreaElement | null;
+          if (ta) {
+            ta.focus();
+            ta.selectionStart = ta.value.length;
+          }
+        }
+      });
+    });
+
+    // Edit cancel button
+    this.container.querySelector('.ai-edit-cancel')?.addEventListener('click', () => {
+      this.editingIndex = null;
+      this.render();
+    });
+
+    // Edit save button
+    this.container.querySelector('.ai-edit-save')?.addEventListener('click', () => {
+      const ta = document.getElementById('ai-edit-textarea') as HTMLTextAreaElement | null;
+      const newText = ta?.value.trim();
+      if (newText && this.editingIndex !== null) {
+        this.messages = this.messages.slice(0, this.editingIndex);
+        this.editingIndex = null;
+        this.handleSend(newText);
+      }
+    });
+
+    // Edit textarea keyboard shortcuts
+    const editTextarea = document.getElementById('ai-edit-textarea') as HTMLTextAreaElement | null;
+    editTextarea?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        this.container.querySelector<HTMLButtonElement>('.ai-edit-save')?.click();
+      }
+      if (e.key === 'Escape') {
+        this.container.querySelector<HTMLButtonElement>('.ai-edit-cancel')?.click();
+      }
+    });
+
+    // Regenerate button
+    this.container.querySelector('.ai-regen-btn')?.addEventListener('click', () => {
+      const lastIdx = this.messages.length - 1;
+      if (lastIdx >= 0 && this.messages[lastIdx].role === 'assistant') {
+        this.messages.pop();
+        const lastUserMsg = [...this.messages].reverse().find((m) => m.role === 'user');
+        if (lastUserMsg) {
+          const userIdx = this.messages.lastIndexOf(lastUserMsg);
+          if (userIdx >= 0) this.messages.splice(userIdx, 1);
+          this.handleSend(lastUserMsg.content);
+        }
+      }
+    });
+
     // Clear/new chat button
     clearBtn?.addEventListener('click', () => {
       this.messages = [];
       this.streamingContent = '';
       this.isLoading = false;
+      this.editingIndex = null;
       this.render();
     });
 
@@ -399,12 +651,17 @@ export class AIAssistantPanel {
           .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
       ];
 
-      const fullResponse = await chatStream(apiMessages, (chunk) => {
+      const result: ChatStreamResult = await chatStream(apiMessages, (chunk) => {
         this.streamingContent += chunk;
         this.updateStreamingMessage();
       });
 
-      this.messages.push({ role: 'assistant', content: fullResponse, model: usedModel });
+      this.messages.push({
+        role: 'assistant',
+        content: result.text,
+        model: usedModel,
+        usage: result.usage,
+      });
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       if (errorMsg === 'AUTH_REQUIRED') {
@@ -456,6 +713,25 @@ export class AIAssistantPanel {
         if (code) {
           this.editor.insertAtCursor(code);
           this.editor.focus();
+        }
+      });
+    });
+
+    // Re-attach copy buttons
+    streamEl.querySelectorAll<HTMLButtonElement>('.ai-copy-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const code = btn.dataset.code;
+        if (code) {
+          try {
+            await navigator.clipboard.writeText(code);
+            const original = btn.textContent;
+            btn.textContent = t('ai.copied');
+            btn.classList.add('ai-copy-btn--copied');
+            setTimeout(() => {
+              btn.textContent = original;
+              btn.classList.remove('ai-copy-btn--copied');
+            }, 1500);
+          } catch { /* Clipboard API not available */ }
         }
       });
     });
