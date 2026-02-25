@@ -7,6 +7,12 @@ export const en: Record<string, string> = {
   'app.btn_copy_title': 'Copy formatted DAX',
   'app.copied': 'Copied!',
   'app.btn_lang_title': 'Switch language',
+  'app.format_error': 'Format failed: {error}',
+  'app.untitled': 'Untitled measure',
+
+  // Sidebar
+  'sidebar.close': 'Close sidebar',
+  'sidebar.ai_title': 'AI ASSISTANT',
 
   // Status bar
   'status.all_good': 'All good \u2014 no issues found',
@@ -101,6 +107,10 @@ export const en: Record<string, string> = {
   'qf.divide': 'Replace with DIVIDE({left}, {right})',
   'qf.switch': 'Consider using SWITCH(TRUE(), ...) instead of nested IFs',
   'qf.add_return': 'Add RETURN statement',
+  'qf.remove_unused_var': 'Remove unused variable',
+  'qf.switch_template': 'Insert SWITCH(TRUE()) template',
+  'qf.calculate_alternative': 'Insert CALCULATE alternative',
+  'qf.wrap_sum': 'Wrap with SUM()',
 
   // Keyword help
   'kw.var': 'Declares a variable. Must be followed by RETURN to use the variable value.',

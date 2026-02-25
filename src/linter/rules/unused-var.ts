@@ -52,6 +52,28 @@ export const unusedVar = (tokens: Token[]): LintDiagnostic[] => {
     }
 
     if (!used) {
+      // Build a quick fix to remove the entire VAR declaration line(s)
+      const removeLine = v.varToken.line;
+      // Find the end of the assignment: scan forward from nameToken to find the next
+      // VAR or RETURN keyword, or end of tokens
+      let removeEndLine = v.nameToken.endLine + 1;
+      let pastName = false;
+      let depth = 0;
+      for (const token of nonWS) {
+        if (token === v.nameToken) { pastName = true; continue; }
+        if (!pastName) continue;
+        // Track paren depth so we don't stop inside a nested expression
+        if (token.type === TokenType.OpenParen) { depth++; continue; }
+        if (token.type === TokenType.CloseParen) { depth--; continue; }
+        if (depth > 0) continue;
+        // Stop at the next VAR or RETURN keyword (that's the next declaration)
+        if (token.type === TokenType.Keyword &&
+            (token.value.toUpperCase() === 'VAR' || token.value.toUpperCase() === 'RETURN')) {
+          removeEndLine = token.line;
+          break;
+        }
+      }
+
       diagnostics.push({
         severity: 'warning',
         message: t('lint.unused_var', { name: v.name }),
@@ -60,6 +82,13 @@ export const unusedVar = (tokens: Token[]): LintDiagnostic[] => {
         endLine: v.nameToken.endLine,
         endCol: v.nameToken.endCol,
         ruleId: 'unused-var',
+        quickFix: {
+          title: t('qf.remove_unused_var'),
+          edits: [{
+            range: { startLine: removeLine, startCol: 1, endLine: removeEndLine, endCol: 1 },
+            text: '',
+          }],
+        },
       });
     }
   }

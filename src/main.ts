@@ -1,11 +1,11 @@
 import { createEditor } from './editor/cm/setup';
 import { DiagnosticsPanel } from './panels/diagnostics';
-import { FunctionHelpPanel } from './panels/function-help';
 import { BestPracticesPanel } from './panels/best-practices';
 import { ModelBrowserPanel } from './panels/model-browser';
 import { ExpressionLibraryPanel } from './panels/expression-library';
 import { AIAssistantPanel } from './panels/ai-assistant';
 import { loadDefaultModel } from './model/default-model';
+import { formatDax } from './formatter/index';
 import { detectLocale, setLocale, getLocale, applyTranslations, t } from './i18n/index';
 import type { Locale } from './i18n/index';
 import './styles/main.css';
@@ -27,8 +27,9 @@ const editor = createEditor(editorContainer, savedTheme as 'dark' | 'light');
 
 // Apply saved theme to button icon
 const themeBtn = document.getElementById('btn-theme');
-if (savedTheme === 'light' && themeBtn) {
-  themeBtn.innerHTML = '&#9728;'; // sun
+const themeIcon = themeBtn?.querySelector('.ab-icon');
+if (savedTheme === 'light' && themeIcon) {
+  themeIcon.innerHTML = '&#9728;'; // sun
 }
 
 // Theme toggle handler
@@ -37,11 +38,11 @@ function applyTheme(theme: string): void {
   if (theme === 'light') {
     document.documentElement.setAttribute('data-theme', 'light');
     editor.setTheme('light');
-    if (themeBtn) themeBtn.innerHTML = '&#9728;'; // sun
+    if (themeIcon) themeIcon.innerHTML = '&#9728;'; // sun
   } else {
     document.documentElement.removeAttribute('data-theme');
     editor.setTheme('dark');
-    if (themeBtn) themeBtn.innerHTML = '&#9790;'; // moon
+    if (themeIcon) themeIcon.innerHTML = '&#9790;'; // moon
   }
   localStorage.setItem(THEME_KEY, theme);
   setTimeout(() => document.documentElement.classList.remove('theme-transitioning'), 350);
@@ -55,9 +56,10 @@ themeBtn?.addEventListener('click', () => {
 /* ── Language toggle ────────────────────────────────── */
 const LOCALE_LABELS: Record<Locale, string> = { nl: 'NL', en: 'EN' };
 const langBtn = document.getElementById('btn-lang');
+const langIcon = langBtn?.querySelector('.ab-lang-icon');
 
 function updateLangButton(): void {
-  if (langBtn) langBtn.textContent = LOCALE_LABELS[getLocale()] ?? 'EN';
+  if (langIcon) langIcon.textContent = LOCALE_LABELS[getLocale()] ?? 'EN';
 }
 updateLangButton();
 
@@ -74,7 +76,6 @@ langBtn?.addEventListener('click', () => {
 
 // Initialize panels
 const diagnosticsPanel = new DiagnosticsPanel(editor);
-new FunctionHelpPanel(editor);
 const bestPracticesPanel = new BestPracticesPanel();
 const modelBrowserPanel = new ModelBrowserPanel(editor);
 const expressionLibrary = new ExpressionLibraryPanel(editor);
@@ -94,11 +95,17 @@ loadDefaultModel();
 // Apply translations to data-i18n elements
 applyTranslations();
 
-// Ctrl+S to save expression
+// Global keyboard shortcuts
 document.addEventListener('keydown', (e) => {
+  // Ctrl+S to save expression
   if ((e.ctrlKey || e.metaKey) && e.key === 's') {
     e.preventDefault();
     expressionLibrary.saveCurrentExpression();
+  }
+  // Ctrl+B to toggle left sidebar
+  if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+    e.preventDefault();
+    toggleLeftSidebar();
   }
 });
 
@@ -118,87 +125,180 @@ statusBar?.addEventListener('click', () => {
   }
 });
 
-/* ── Drawer: tab switching + expand/collapse ─────────── */
-const DRAWER_KEY = 'appledax-drawer';
-const drawer = document.getElementById('drawer')!;
-const drawerTabs = document.querySelectorAll<HTMLElement>('#drawer-tabs .drawer-tab');
-let activeDrawerPanel: string | null = null;
+/* ── Left Sidebar: panel switching ───────────────────── */
+const LEFT_PANEL_KEY = 'appledax-left-panel';
+const app = document.getElementById('app')!;
+const leftSidebar = document.getElementById('left-sidebar')!;
+const leftSidebarClose = document.getElementById('left-sidebar-close')!;
+const activityBarBtns = document.querySelectorAll<HTMLElement>('#activity-bar .ab-btn[data-panel]');
+const sidebarTabs = document.querySelectorAll<HTMLElement>('#left-sidebar-tabs .sidebar-tab');
+let activeLeftPanel: string | null = null;
+let lastLeftPanel: string = 'model-browser';
 
-function openDrawer(panelId: string): void {
-  // Activate the correct panel
-  document.querySelectorAll('#drawer-content .drawer-panel').forEach((p) => p.classList.remove('active'));
+function switchLeftPanel(panelId: string): void {
+  // Activate the correct panel content
+  document.querySelectorAll('#left-sidebar-content .sidebar-panel').forEach((p) => p.classList.remove('active'));
   document.getElementById(`${panelId}-panel`)?.classList.add('active');
 
-  // Expand the drawer
-  drawer.classList.remove('collapsed');
-  drawer.classList.add('expanded');
-  activeDrawerPanel = panelId;
+  // Show sidebar if collapsed
+  leftSidebar.classList.remove('collapsed');
+  app.classList.remove('left-collapsed');
+  activeLeftPanel = panelId;
+  lastLeftPanel = panelId;
 
-  // Highlight tab
-  drawerTabs.forEach((tab) => {
-    tab.classList.toggle('active', tab.dataset.drawer === panelId);
+  // Sync activity bar highlights
+  activityBarBtns.forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.panel === panelId);
   });
 
-  localStorage.setItem(DRAWER_KEY, panelId);
+  // Sync sidebar tab highlights
+  sidebarTabs.forEach((tab) => {
+    tab.classList.toggle('active', tab.dataset.panel === panelId);
+  });
+
+  localStorage.setItem(LEFT_PANEL_KEY, panelId);
 }
 
-function closeDrawer(): void {
-  drawer.classList.remove('expanded');
-  drawer.classList.add('collapsed');
-  drawerTabs.forEach((tab) => tab.classList.remove('active'));
-  activeDrawerPanel = null;
-  localStorage.removeItem(DRAWER_KEY);
+function closeLeftSidebar(): void {
+  leftSidebar.classList.add('collapsed');
+  app.classList.add('left-collapsed');
+  activityBarBtns.forEach((btn) => btn.classList.remove('active'));
+  sidebarTabs.forEach((tab) => tab.classList.remove('active'));
+  activeLeftPanel = null;
+  localStorage.removeItem(LEFT_PANEL_KEY);
 }
 
-drawerTabs.forEach((tab) => {
-  tab.addEventListener('click', () => {
-    const panelId = tab.dataset.drawer;
+function toggleLeftSidebar(): void {
+  if (activeLeftPanel) {
+    closeLeftSidebar();
+  } else {
+    switchLeftPanel(lastLeftPanel);
+  }
+}
+
+// Activity bar buttons: toggle sidebar or switch panel
+activityBarBtns.forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const panelId = btn.dataset.panel;
     if (!panelId) return;
 
-    // If clicking the same tab, toggle the drawer
-    if (activeDrawerPanel === panelId) {
-      closeDrawer();
+    if (activeLeftPanel === panelId) {
+      closeLeftSidebar();
     } else {
-      openDrawer(panelId);
+      switchLeftPanel(panelId);
     }
   });
 });
 
-// Restore drawer state from localStorage
-const savedDrawer = localStorage.getItem(DRAWER_KEY);
-if (savedDrawer) {
-  openDrawer(savedDrawer);
+// Sidebar tabs: always switch panel (never close)
+sidebarTabs.forEach((tab) => {
+  tab.addEventListener('click', () => {
+    const panelId = tab.dataset.panel;
+    if (!panelId) return;
+    switchLeftPanel(panelId);
+  });
+});
+
+leftSidebarClose.addEventListener('click', closeLeftSidebar);
+
+// Migrate old drawer localStorage
+const oldDrawerKey = 'appledax-drawer';
+const oldDrawer = localStorage.getItem(oldDrawerKey);
+if (oldDrawer) {
+  localStorage.removeItem(oldDrawerKey);
+  if (oldDrawer === 'ai-assistant') {
+    // AI goes to right sidebar — it's open by default
+  } else if (oldDrawer !== 'function-help') {
+    localStorage.setItem(LEFT_PANEL_KEY, oldDrawer);
+  }
 }
 
-/* ── Drawer: drag handle to resize ─────────────────── */
-const drawerHandle = document.getElementById('drawer-handle');
-let isDragging = false;
-let startY = 0;
-let startHeight = 0;
+// Restore left sidebar state from localStorage
+const savedLeftPanel = localStorage.getItem(LEFT_PANEL_KEY);
+if (savedLeftPanel) {
+  openLeftSidebar(savedLeftPanel);
+} else {
+  // Start collapsed
+  closeLeftSidebar();
+}
 
-drawerHandle?.addEventListener('mousedown', (e) => {
-  if (drawer.classList.contains('collapsed')) return;
-  isDragging = true;
-  startY = e.clientY;
-  startHeight = drawer.offsetHeight;
-  document.body.style.cursor = 'ns-resize';
-  document.body.style.userSelect = 'none';
-  e.preventDefault();
-});
+/* ── Right Sidebar: AI assistant ─────────────────────── */
+const RIGHT_SIDEBAR_KEY = 'appledax-right-sidebar';
+const rightSidebar = document.getElementById('right-sidebar')!;
+const rightSidebarClose = document.getElementById('right-sidebar-close')!;
+const aiFab = document.getElementById('ai-fab')!;
 
-document.addEventListener('mousemove', (e) => {
-  if (!isDragging) return;
-  const delta = startY - e.clientY;
-  const newHeight = Math.max(100, Math.min(startHeight + delta, window.innerHeight * 0.6));
-  drawer.style.height = newHeight + 'px';
-});
+function openRightSidebar(): void {
+  rightSidebar.classList.remove('collapsed');
+  app.classList.remove('right-collapsed');
+  aiFab.classList.add('hidden');
+  localStorage.setItem(RIGHT_SIDEBAR_KEY, 'open');
+}
 
-document.addEventListener('mouseup', () => {
-  if (!isDragging) return;
-  isDragging = false;
-  document.body.style.cursor = '';
-  document.body.style.userSelect = '';
-});
+function closeRightSidebar(): void {
+  rightSidebar.classList.add('collapsed');
+  app.classList.add('right-collapsed');
+  aiFab.classList.remove('hidden');
+  localStorage.setItem(RIGHT_SIDEBAR_KEY, 'closed');
+}
+
+rightSidebarClose.addEventListener('click', closeRightSidebar);
+aiFab.addEventListener('click', openRightSidebar);
+
+// Restore right sidebar state (default: open)
+const savedRightSidebar = localStorage.getItem(RIGHT_SIDEBAR_KEY);
+if (savedRightSidebar === 'closed') {
+  closeRightSidebar();
+} else {
+  openRightSidebar();
+}
+
+/* ── Sidebar resize handles ──────────────────────────── */
+function setupSidebarResize(
+  handleId: string,
+  side: 'left' | 'right',
+  cssVar: string,
+  min: number,
+  max: number,
+): void {
+  const handle = document.getElementById(handleId);
+  if (!handle) return;
+
+  let isDragging = false;
+  let startX = 0;
+  let startWidth = 0;
+
+  handle.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    startX = e.clientX;
+    const current = parseInt(getComputedStyle(document.documentElement).getPropertyValue(cssVar)) || (side === 'left' ? 280 : 360);
+    startWidth = current;
+    handle.classList.add('dragging');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const delta = side === 'left'
+      ? e.clientX - startX
+      : startX - e.clientX;
+    const newWidth = Math.max(min, Math.min(startWidth + delta, max));
+    document.documentElement.style.setProperty(cssVar, newWidth + 'px');
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!isDragging) return;
+    isDragging = false;
+    handle.classList.remove('dragging');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  });
+}
+
+setupSidebarResize('left-resize-handle', 'left', '--left-sidebar-width', 200, 500);
+setupSidebarResize('right-resize-handle', 'right', '--right-sidebar-width', 260, 600);
 
 /* ── Welcome overlay ─────────────────────────────────── */
 const WELCOME_KEY = 'appledax-welcome-dismissed';
@@ -245,7 +345,7 @@ editor.onContentChange(() => {
   }
 });
 
-/* ── Toolbar: Copy button ──────────────────────────── */
+/* ── Editor Header: Copy button ──────────────────────── */
 document.getElementById('btn-copy')?.addEventListener('click', () => {
   const text = editor.getValue();
   if (text) {
@@ -260,182 +360,20 @@ document.getElementById('btn-copy')?.addEventListener('click', () => {
   }
 });
 
-/* ── Toolbar: Format button ────────────────────────── */
+/* ── Editor Header: Format button ────────────────────── */
 document.getElementById('btn-format')?.addEventListener('click', () => {
   const source = editor.getValue();
   if (!source) return;
 
-  const formatted = formatDax(source);
-  editor.setValue(formatted);
+  try {
+    const formatted = formatDax(source);
+    editor.setValue(formatted);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const statusText = document.getElementById('status-text');
+    if (statusText) {
+      statusText.textContent = t('app.format_error', { error: msg });
+      setTimeout(() => { statusText.textContent = ''; }, 4000);
+    }
+  }
 });
-
-function formatDax(source: string): string {
-  // Step 1: Normalize — collapse to a single line per logical statement,
-  // preserving comment lines and blank line separators.
-  const rawLines = source.split('\n');
-  const chunks: string[] = [];
-  let buf = '';
-
-  for (const raw of rawLines) {
-    const trimmed = raw.trim();
-    if (!trimmed) {
-      if (buf) { chunks.push(buf); buf = ''; }
-      chunks.push('');
-      continue;
-    }
-    if (trimmed.startsWith('//')) {
-      if (buf) { chunks.push(buf); buf = ''; }
-      chunks.push(trimmed);
-      continue;
-    }
-    buf = buf ? buf + ' ' + trimmed : trimmed;
-  }
-  if (buf) chunks.push(buf);
-
-  // Step 2: Expand — split on structural tokens and re-indent
-  const output: string[] = [];
-  let indent = 0;
-  const TAB = '    ';
-
-  for (const chunk of chunks) {
-    if (!chunk) { output.push(''); continue; }
-    if (chunk.startsWith('//')) { output.push(TAB.repeat(indent) + chunk); continue; }
-
-    const tokens = tokenizeForFormat(chunk);
-    formatTokens(tokens, output, indent);
-  }
-
-  return output.join('\n');
-}
-
-function tokenizeForFormat(input: string): string[] {
-  const tokens: string[] = [];
-  let current = '';
-  let i = 0;
-
-  while (i < input.length) {
-    const ch = input[i];
-
-    // String literal
-    if (ch === '"') {
-      current += ch; i++;
-      while (i < input.length && input[i] !== '"') { current += input[i]; i++; }
-      if (i < input.length) { current += input[i]; i++; }
-      continue;
-    }
-
-    // Table ref 'name'
-    if (ch === "'") {
-      current += ch; i++;
-      while (i < input.length && input[i] !== "'") { current += input[i]; i++; }
-      if (i < input.length) { current += input[i]; i++; }
-      continue;
-    }
-
-    // Column ref [name]
-    if (ch === '[') {
-      current += ch; i++;
-      while (i < input.length && input[i] !== ']') { current += input[i]; i++; }
-      if (i < input.length) { current += input[i]; i++; }
-      continue;
-    }
-
-    // Open paren
-    if (ch === '(') {
-      if (current.trim()) tokens.push(current.trim());
-      current = '';
-      tokens.push('(');
-      i++; continue;
-    }
-
-    // Close paren
-    if (ch === ')') {
-      if (current.trim()) tokens.push(current.trim());
-      current = '';
-      tokens.push(')');
-      i++; continue;
-    }
-
-    // Comma
-    if (ch === ',') {
-      if (current.trim()) tokens.push(current.trim());
-      current = '';
-      tokens.push(',');
-      i++; continue;
-    }
-
-    current += ch;
-    i++;
-  }
-
-  if (current.trim()) tokens.push(current.trim());
-  return tokens;
-}
-
-function formatTokens(tokens: string[], output: string[], startIndent: number): void {
-  const TAB = '    ';
-  let indent = startIndent;
-  let lineBuffer = '';
-
-  function flushLine(): void {
-    if (lineBuffer.trim()) {
-      output.push(TAB.repeat(indent) + lineBuffer.trim());
-    }
-    lineBuffer = '';
-  }
-
-  for (let i = 0; i < tokens.length; i++) {
-    const tok = tokens[i];
-    const upper = tok.toUpperCase();
-
-    if (tok === '(') {
-      lineBuffer += '(';
-      flushLine();
-      indent++;
-      continue;
-    }
-
-    if (tok === ')') {
-      flushLine();
-      indent = Math.max(startIndent, indent - 1);
-      lineBuffer = ')';
-      const next = tokens[i + 1];
-      if (!next || (next !== ',' && next !== ')')) {
-        flushLine();
-      }
-      continue;
-    }
-
-    if (tok === ',') {
-      lineBuffer += ',';
-      flushLine();
-      continue;
-    }
-
-    // Keywords that should start a new line: VAR, RETURN
-    if (upper === 'VAR' || upper.startsWith('VAR ')) {
-      flushLine();
-      lineBuffer = tok;
-      flushLine();
-      indent = Math.max(startIndent, indent);
-      continue;
-    }
-
-    if (upper === 'RETURN' || upper.startsWith('RETURN ')) {
-      flushLine();
-      const retIndent = Math.max(startIndent, indent);
-      output.push(TAB.repeat(retIndent) + tok);
-      indent = retIndent + 1;
-      continue;
-    }
-
-    // Regular content
-    if (lineBuffer) {
-      lineBuffer += ' ' + tok;
-    } else {
-      lineBuffer = tok;
-    }
-  }
-
-  flushLine();
-}

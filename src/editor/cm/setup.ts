@@ -1,7 +1,7 @@
 import { EditorState, type Extension, Compartment } from '@codemirror/state';
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection, highlightSpecialChars } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
-import { bracketMatching, indentOnInput, syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
+import { bracketMatching, indentOnInput, syntaxHighlighting, defaultHighlightStyle, foldGutter, foldKeymap } from '@codemirror/language';
 import { autocompletion, closeBrackets, closeBracketsKeymap, acceptCompletion } from '@codemirror/autocomplete';
 import { lintGutter } from '@codemirror/lint';
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
@@ -11,6 +11,8 @@ import { darkTheme, lightTheme } from './dax-theme';
 import { daxCompletionSource } from './dax-completions';
 import { daxHoverTooltip } from './dax-hover';
 import { daxLinter } from './dax-lint';
+import { daxGotoDefinition } from './dax-goto';
+import { daxRenameVariable } from './dax-rename';
 import type { EditorAdapter, EditorRange } from '../editor-interface';
 
 /* ── Theme compartment for dynamic switching ────────────── */
@@ -66,6 +68,7 @@ export function createEditor(container: HTMLElement, initialTheme: 'dark' | 'lig
 
   const extensions: Extension[] = [
     lineNumbers(),
+    foldGutter(),
     highlightActiveLine(),
     highlightActiveLineGutter(),
     drawSelection(),
@@ -84,6 +87,8 @@ export function createEditor(container: HTMLElement, initialTheme: 'dark' | 'lig
     daxLanguage,
     daxLinter,
     daxHoverTooltip,
+    daxGotoDefinition,
+    daxRenameVariable,
     themeCompartment.of(themeExtension),
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
     keymap.of([
@@ -91,8 +96,9 @@ export function createEditor(container: HTMLElement, initialTheme: 'dark' | 'lig
       ...defaultKeymap,
       ...searchKeymap,
       ...historyKeymap,
-      indentWithTab,
+      ...foldKeymap,
       { key: 'Tab', run: acceptCompletion },
+      indentWithTab,
     ]),
     EditorView.lineWrapping,
     EditorState.tabSize.of(4),

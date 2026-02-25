@@ -80,6 +80,7 @@ export const calculateNakedColumn = (tokens: Token[]): LintDiagnostic[] => {
       // Highlight from the first token of the argument to the last
       const firstTok = firstArgTokens[0];
       const lastTok = firstArgTokens[firstArgTokens.length - 1];
+      const originalText = firstArgTokens.map((tk) => tk.value).join('');
 
       diagnostics.push({
         severity: 'warning',
@@ -89,6 +90,18 @@ export const calculateNakedColumn = (tokens: Token[]): LintDiagnostic[] => {
         endLine: lastTok.endLine,
         endCol: lastTok.endCol,
         ruleId: 'calculate-naked-column',
+        quickFix: {
+          title: t('qf.wrap_sum'),
+          edits: [{
+            range: {
+              startLine: firstTok.line,
+              startCol: firstTok.col,
+              endLine: lastTok.endLine,
+              endCol: lastTok.endCol,
+            },
+            text: `SUM(${originalText})`,
+          }],
+        },
       });
     }
   }

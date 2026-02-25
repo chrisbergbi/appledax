@@ -48,6 +48,16 @@ const darkEditorTheme = EditorView.theme({
     color: '#D4D4D4',
     border: 'none',
   },
+  '.cm-foldGutter .cm-gutterElement': {
+    cursor: 'pointer',
+    color: '#858585',
+    fontSize: '12px',
+    lineHeight: '1.6',
+    padding: '0 2px',
+  },
+  '.cm-foldGutter .cm-gutterElement:hover': {
+    color: '#D4D4D4',
+  },
   '.cm-tooltip': {
     backgroundColor: '#252526',
     border: '1px solid #454545',
@@ -165,6 +175,21 @@ const lightEditorTheme = EditorView.theme({
       backgroundColor: '#d6ebff',
       color: '#000000',
     },
+  },
+  '.cm-foldPlaceholder': {
+    backgroundColor: '#e8e8f0',
+    color: '#404058',
+    border: 'none',
+  },
+  '.cm-foldGutter .cm-gutterElement': {
+    cursor: 'pointer',
+    color: '#9A9AB0',
+    fontSize: '12px',
+    lineHeight: '1.6',
+    padding: '0 2px',
+  },
+  '.cm-foldGutter .cm-gutterElement:hover': {
+    color: '#404058',
   },
   '.cm-completionIcon': { paddingRight: '4px', opacity: '0.7' },
   '.cm-completionLabel': { fontSize: '13px' },

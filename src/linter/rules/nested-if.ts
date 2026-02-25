@@ -129,14 +129,22 @@ export const nestedIf = (tokens: Token[]): LintDiagnostic[] => {
         const currentIfDepth = scopeStack.filter((s) => s.isIf).length;
         if (currentIfDepth > MAX_NESTING && !reported.has(nonWS[i - 1].line)) {
           reported.add(nonWS[i - 1].line);
+          const ifToken = nonWS[i - 1];
           diagnostics.push({
             severity: 'info',
             message: t('lint.nested_if', { depth: currentIfDepth, max: MAX_NESTING }),
-            startLine: nonWS[i - 1].line,
-            startCol: nonWS[i - 1].col,
-            endLine: nonWS[i - 1].endLine,
-            endCol: nonWS[i - 1].endCol,
+            startLine: ifToken.line,
+            startCol: ifToken.col,
+            endLine: ifToken.endLine,
+            endCol: ifToken.endCol,
             ruleId: 'nested-if',
+            quickFix: {
+              title: t('qf.switch_template'),
+              edits: [{
+                range: { startLine: ifToken.line + 1, startCol: 1, endLine: ifToken.line + 1, endCol: 1 },
+                text: '// Consider: SWITCH(TRUE(), <cond1>, <result1>, <cond2>, <result2>, <default>)\n',
+              }],
+            },
           });
         }
       }

@@ -7,6 +7,12 @@ export const nl: Record<string, string> = {
   'app.btn_copy_title': 'Opgemaakte DAX kopiëren',
   'app.copied': 'Gekopieerd!',
   'app.btn_lang_title': 'Taal wisselen',
+  'app.format_error': 'Opmaak mislukt: {error}',
+  'app.untitled': 'Naamloze measure',
+
+  // Zijbalk
+  'sidebar.close': 'Zijbalk sluiten',
+  'sidebar.ai_title': 'AI ASSISTENT',
 
   // Statusbalk
   'status.all_good': 'Alles goed \u2014 geen problemen gevonden',
@@ -101,6 +107,10 @@ export const nl: Record<string, string> = {
   'qf.divide': 'Vervang door DIVIDE({left}, {right})',
   'qf.switch': 'Overweeg SWITCH(TRUE(), ...) in plaats van geneste IFs',
   'qf.add_return': 'RETURN toevoegen',
+  'qf.remove_unused_var': 'Ongebruikte variabele verwijderen',
+  'qf.switch_template': 'SWITCH(TRUE()) sjabloon invoegen',
+  'qf.calculate_alternative': 'CALCULATE alternatief invoegen',
+  'qf.wrap_sum': 'Omwikkelen met SUM()',
 
   // Keyword help
   'kw.var': 'Declareert een variabele. Moet gevolgd worden door RETURN om de waarde te gebruiken.',

@@ -26,6 +26,13 @@ export const filterAllPattern = (tokens: Token[]): LintDiagnostic[] => {
         endLine: nonWS[i + 2].endLine,
         endCol: nonWS[i + 2].endCol,
         ruleId: 'filter-all-pattern',
+        quickFix: {
+          title: t('qf.calculate_alternative'),
+          edits: [{
+            range: { startLine: nonWS[i].line + 1, startCol: 1, endLine: nonWS[i].line + 1, endCol: 1 },
+            text: '// Consider: CALCULATE(<expr>, \'Table\'[Column] = <value>)\n',
+          }],
+        },
       });
     }
   }
