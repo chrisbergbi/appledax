@@ -162,6 +162,9 @@ export const en: Record<string, string> = {
   'lint.all_vs_removefilters': 'ALL() used as a CALCULATE filter. Consider REMOVEFILTERS() for clarity \u2014 it expresses the intent more explicitly.',
   'lint.function_casing': "Function '{name}' should be uppercase: {upper}.",
   'lint.selectedvalue_suggestion': 'IF(HASONEVALUE(...), VALUES(...), <default>) can be simplified to SELECTEDVALUE(..., <default>).',
+  'lint.related_needs_column': "RELATED() requires a column reference ('Table'[Column]), not a table reference. Example: RELATED('Orders'[Amount]).",
+  'lint.relatedtable_needs_table': "RELATEDTABLE() requires a table reference, not a column reference. Example: RELATEDTABLE('Orders').",
+  'lint.related_no_relationship': "No relationship found between '{from}' and '{to}'. RELATED/RELATEDTABLE requires an active relationship between the tables.",
 
   // Quick fixes (new)
   'qf.replace_function': 'Replace with {name}',

@@ -24,6 +24,7 @@ import { iferrorWarning } from './iferror-warning';
 import { allVsRemovefilters } from './all-vs-removefilters';
 import { functionCasing } from './function-casing';
 import { selectedvalueSuggestion } from './selectedvalue-suggestion';
+import { relatedValidation } from './related-validation';
 
 export const allRules: LintRule[] = [
   unbalancedParens,
@@ -48,6 +49,7 @@ export const allRules: LintRule[] = [
   allVsRemovefilters,
   selectedvalueSuggestion,
   functionCasing,
+  relatedValidation,
   unknownTable,
   unknownColumn,
   numericAggregation,

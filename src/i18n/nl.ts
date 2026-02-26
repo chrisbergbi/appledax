@@ -168,6 +168,9 @@ export const nl: Record<string, string> = {
   'lint.all_vs_removefilters': 'ALL() gebruikt als CALCULATE-filter. Overweeg REMOVEFILTERS() voor duidelijkheid \u2014 het drukt de intentie explicieter uit.',
   'lint.function_casing': "Functie '{name}' moet in hoofdletters: {upper}.",
   'lint.selectedvalue_suggestion': 'IF(HASONEVALUE(...), VALUES(...), <standaard>) kan vereenvoudigd worden tot SELECTEDVALUE(..., <standaard>).',
+  'lint.related_needs_column': "RELATED() vereist een kolomverwijzing ('Tabel'[Kolom]), geen tabelverwijzing. Voorbeeld: RELATED('Orders'[Bedrag]).",
+  'lint.relatedtable_needs_table': "RELATEDTABLE() vereist een tabelverwijzing, geen kolomverwijzing. Voorbeeld: RELATEDTABLE('Orders').",
+  'lint.related_no_relationship': "Geen relatie gevonden tussen '{from}' en '{to}'. RELATED/RELATEDTABLE vereist een actieve relatie tussen de tabellen.",
 
   // Best practices
   'bp.performance': 'Prestaties',
