@@ -18,6 +18,12 @@ import { deprecatedFunction } from './deprecated-function';
 import { redundantIf } from './redundant-if';
 import { isblankPreference } from './isblank-preference';
 import { countrowsFilterPattern } from './countrows-filter-pattern';
+import { ifMissingElse } from './if-missing-else';
+import { duplicateVar } from './duplicate-var';
+import { iferrorWarning } from './iferror-warning';
+import { allVsRemovefilters } from './all-vs-removefilters';
+import { functionCasing } from './function-casing';
+import { selectedvalueSuggestion } from './selectedvalue-suggestion';
 
 export const allRules: LintRule[] = [
   unbalancedParens,
@@ -25,17 +31,23 @@ export const allRules: LintRule[] = [
   missingComma,
   varReturn,
   unusedVar,
+  duplicateVar,
   unknownFunction,
   wrongArgumentCount,
   deprecatedFunction,
+  ifMissingElse,
   nestedIf,
   redundantIf,
   divideSuggestion,
   isblankPreference,
+  iferrorWarning,
   calculateNoFilter,
   calculateNakedColumn,
   filterAllPattern,
   countrowsFilterPattern,
+  allVsRemovefilters,
+  selectedvalueSuggestion,
+  functionCasing,
   unknownTable,
   unknownColumn,
   numericAggregation,

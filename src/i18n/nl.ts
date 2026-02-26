@@ -114,6 +114,9 @@ export const nl: Record<string, string> = {
   'qf.replace_function': 'Vervang door {name}',
   'qf.deprecated_var_hint': 'VAR-patroon hint invoegen',
   'qf.countrows_calculate': 'CALCULATE alternatief invoegen',
+  'qf.uppercase_function': 'Wijzig naar {name}',
+  'qf.iferror_hint': 'Specifieke foutafhandeling hint invoegen',
+  'qf.selectedvalue_hint': 'SELECTEDVALUE alternatief invoegen',
 
   // Keyword help
   'kw.var': 'Declareert een variabele. Moet gevolgd worden door RETURN om de waarde te gebruiken.',
@@ -159,6 +162,12 @@ export const nl: Record<string, string> = {
   'lint.redundant_if_false_true': 'Overbodige IF: IF(<cond>, FALSE(), TRUE()) kan vereenvoudigd worden tot NOT(<cond>).',
   'lint.isblank_preference': 'Gebruik ISBLANK() in plaats van vergelijking met = BLANK().',
   'lint.countrows_filter': 'COUNTROWS(FILTER(...)) kan worden herschreven als CALCULATE(COUNTROWS(...), <filter>) voor betere prestaties.',
+  'lint.if_missing_else': 'IF() aangeroepen met slechts 2 argumenten. De else-tak geeft standaard BLANK() terug, wat onverwachte resultaten kan veroorzaken. Overweeg een expliciet derde argument toe te voegen.',
+  'lint.duplicate_var': "Dubbele variabelenaam '{name}'. Dit overschaduwt de eerdere declaratie.",
+  'lint.iferror_warning': 'IFERROR() onderdrukt alle fouten, inclusief logische fouten. Overweeg de specifieke foutconditie expliciet af te handelen.',
+  'lint.all_vs_removefilters': 'ALL() gebruikt als CALCULATE-filter. Overweeg REMOVEFILTERS() voor duidelijkheid \u2014 het drukt de intentie explicieter uit.',
+  'lint.function_casing': "Functie '{name}' moet in hoofdletters: {upper}.",
+  'lint.selectedvalue_suggestion': 'IF(HASONEVALUE(...), VALUES(...), <standaard>) kan vereenvoudigd worden tot SELECTEDVALUE(..., <standaard>).',
 
   // Best practices
   'bp.performance': 'Prestaties',

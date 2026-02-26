@@ -156,11 +156,20 @@ export const en: Record<string, string> = {
   'lint.redundant_if_false_true': 'Redundant IF: IF(<cond>, FALSE(), TRUE()) simplifies to NOT(<cond>).',
   'lint.isblank_preference': 'Use ISBLANK() instead of comparing with = BLANK().',
   'lint.countrows_filter': 'COUNTROWS(FILTER(...)) can be rewritten as CALCULATE(COUNTROWS(...), <filter>) for better performance.',
+  'lint.if_missing_else': 'IF() called with only 2 arguments. The else branch defaults to BLANK(), which may cause unexpected results. Consider adding an explicit third argument.',
+  'lint.duplicate_var': "Duplicate variable name '{name}'. This shadows the earlier declaration.",
+  'lint.iferror_warning': 'IFERROR() suppresses all errors, including logic bugs. Consider handling the specific error condition explicitly.',
+  'lint.all_vs_removefilters': 'ALL() used as a CALCULATE filter. Consider REMOVEFILTERS() for clarity \u2014 it expresses the intent more explicitly.',
+  'lint.function_casing': "Function '{name}' should be uppercase: {upper}.",
+  'lint.selectedvalue_suggestion': 'IF(HASONEVALUE(...), VALUES(...), <default>) can be simplified to SELECTEDVALUE(..., <default>).',
 
   // Quick fixes (new)
   'qf.replace_function': 'Replace with {name}',
   'qf.deprecated_var_hint': 'Insert VAR pattern hint',
   'qf.countrows_calculate': 'Insert CALCULATE alternative',
+  'qf.uppercase_function': 'Change to {name}',
+  'qf.iferror_hint': 'Insert specific error handling hint',
+  'qf.selectedvalue_hint': 'Insert SELECTEDVALUE alternative',
 
   // Best practices
   'bp.performance': 'Performance',
