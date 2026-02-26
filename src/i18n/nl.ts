@@ -111,6 +111,9 @@ export const nl: Record<string, string> = {
   'qf.switch_template': 'SWITCH(TRUE()) sjabloon invoegen',
   'qf.calculate_alternative': 'CALCULATE alternatief invoegen',
   'qf.wrap_sum': 'Omwikkelen met SUM()',
+  'qf.replace_function': 'Vervang door {name}',
+  'qf.deprecated_var_hint': 'VAR-patroon hint invoegen',
+  'qf.countrows_calculate': 'CALCULATE alternatief invoegen',
 
   // Keyword help
   'kw.var': 'Declareert een variabele. Moet gevolgd worden door RETURN om de waarde te gebruiken.',
@@ -147,6 +150,15 @@ export const nl: Record<string, string> = {
   'lint.unknown_table': "Onbekende tabel: '{name}'. Tabel niet gevonden in het geladen model.",
   'lint.unknown_column': "Onbekende kolom: [{column}] niet gevonden in tabel '{table}'.",
   'lint.numeric_aggregation': "{func} vereist een numerieke kolom, maar '{table}'[{column}] heeft datatype '{dataType}'.",
+  'lint.unknown_function': "Onbekende functie: '{name}'. Bedoelde u '{suggestion}'?",
+  'lint.unknown_function_no_suggestion': "Onbekende functie: '{name}'. Dit is geen herkende DAX-functie.",
+  'lint.too_few_args': "{name} verwacht minstens {min} argument(en), maar {count} opgegeven.",
+  'lint.too_many_args': "{name} verwacht maximaal {max} argument(en), maar {count} opgegeven.",
+  'lint.deprecated_function': "'{name}' wordt afgeraden. {reason}.",
+  'lint.redundant_if_true_false': 'Overbodige IF: IF(<cond>, TRUE(), FALSE()) kan vereenvoudigd worden tot alleen de conditie.',
+  'lint.redundant_if_false_true': 'Overbodige IF: IF(<cond>, FALSE(), TRUE()) kan vereenvoudigd worden tot NOT(<cond>).',
+  'lint.isblank_preference': 'Gebruik ISBLANK() in plaats van vergelijking met = BLANK().',
+  'lint.countrows_filter': 'COUNTROWS(FILTER(...)) kan worden herschreven als CALCULATE(COUNTROWS(...), <filter>) voor betere prestaties.',
 
   // Best practices
   'bp.performance': 'Prestaties',

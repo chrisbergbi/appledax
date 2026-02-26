@@ -12,6 +12,12 @@ import { unknownTable } from './unknown-table';
 import { unknownColumn } from './unknown-column';
 import { calculateNakedColumn } from './calculate-naked-column';
 import { numericAggregation } from './numeric-aggregation';
+import { unknownFunction } from './unknown-function';
+import { wrongArgumentCount } from './wrong-argument-count';
+import { deprecatedFunction } from './deprecated-function';
+import { redundantIf } from './redundant-if';
+import { isblankPreference } from './isblank-preference';
+import { countrowsFilterPattern } from './countrows-filter-pattern';
 
 export const allRules: LintRule[] = [
   unbalancedParens,
@@ -19,11 +25,17 @@ export const allRules: LintRule[] = [
   missingComma,
   varReturn,
   unusedVar,
+  unknownFunction,
+  wrongArgumentCount,
+  deprecatedFunction,
   nestedIf,
+  redundantIf,
   divideSuggestion,
+  isblankPreference,
   calculateNoFilter,
   calculateNakedColumn,
   filterAllPattern,
+  countrowsFilterPattern,
   unknownTable,
   unknownColumn,
   numericAggregation,

@@ -147,6 +147,20 @@ export const en: Record<string, string> = {
   'lint.unknown_table': "Unknown table: '{name}'. Table not found in the loaded model.",
   'lint.unknown_column': "Unknown column: [{column}] not found in table '{table}'.",
   'lint.numeric_aggregation': "{func} requires a numeric column, but '{table}'[{column}] has data type '{dataType}'.",
+  'lint.unknown_function': "Unknown function: '{name}'. Did you mean '{suggestion}'?",
+  'lint.unknown_function_no_suggestion': "Unknown function: '{name}'. Not a recognized DAX function.",
+  'lint.too_few_args': "{name} expects at least {min} argument(s), but got {count}.",
+  'lint.too_many_args': "{name} expects at most {max} argument(s), but got {count}.",
+  'lint.deprecated_function': "'{name}' is discouraged. {reason}.",
+  'lint.redundant_if_true_false': 'Redundant IF: IF(<cond>, TRUE(), FALSE()) simplifies to just the condition.',
+  'lint.redundant_if_false_true': 'Redundant IF: IF(<cond>, FALSE(), TRUE()) simplifies to NOT(<cond>).',
+  'lint.isblank_preference': 'Use ISBLANK() instead of comparing with = BLANK().',
+  'lint.countrows_filter': 'COUNTROWS(FILTER(...)) can be rewritten as CALCULATE(COUNTROWS(...), <filter>) for better performance.',
+
+  // Quick fixes (new)
+  'qf.replace_function': 'Replace with {name}',
+  'qf.deprecated_var_hint': 'Insert VAR pattern hint',
+  'qf.countrows_calculate': 'Insert CALCULATE alternative',
 
   // Best practices
   'bp.performance': 'Performance',
