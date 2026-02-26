@@ -307,4 +307,6 @@ export const en: Record<string, string> = {
   'ai.api_key_placeholder': 'Paste your API key...',
   'ai.settings_save': 'Save',
   'ai.settings_cancel': 'Cancel',
+  'ai.thinking': 'Thinking...',
+  'ai.show_reasoning': 'Show reasoning',
 };

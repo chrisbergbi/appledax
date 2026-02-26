@@ -305,4 +305,6 @@ export const nl: Record<string, string> = {
   'ai.api_key_placeholder': 'Plak je API sleutel...',
   'ai.settings_save': 'Opslaan',
   'ai.settings_cancel': 'Annuleren',
+  'ai.thinking': 'Aan het nadenken...',
+  'ai.show_reasoning': 'Toon redenering',
 };

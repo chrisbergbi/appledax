@@ -16,6 +16,19 @@ function esc(text: string): string {
     .replace(/'/g, '&#39;');
 }
 
+/** Extract <think>...</think> reasoning from DeepSeek R1 responses */
+function parseThinkTags(text: string): { thinking: string; answer: string } {
+  const match = text.match(/^<think>([\s\S]*?)<\/think>\s*([\s\S]*)$/);
+  if (match) {
+    return { thinking: match[1].trim(), answer: match[2].trim() };
+  }
+  // Still inside a <think> block (no closing tag yet)
+  if (text.startsWith('<think>')) {
+    return { thinking: text.slice(7).trim(), answer: '' };
+  }
+  return { thinking: '', answer: text };
+}
+
 interface UIMessage {
   role: 'user' | 'assistant';
   content: string;
@@ -292,9 +305,17 @@ export class AIAssistantPanel {
         }
 
         // ── Assistant message ──
-        const content = msg.rawHtml
-          ? msg.content
-          : formatMarkdown(msg.content);
+        let content: string;
+        if (msg.rawHtml) {
+          content = msg.content;
+        } else {
+          const parsed = parseThinkTags(msg.content);
+          if (parsed.thinking) {
+            content = `<details class="ai-thinking-details"><summary>${esc(t('ai.show_reasoning'))}</summary><div class="ai-thinking-content">${formatMarkdown(parsed.thinking)}</div></details>${formatMarkdown(parsed.answer)}`;
+          } else {
+            content = formatMarkdown(msg.content);
+          }
+        }
 
         // Badges (model + tokens)
         let badgesHtml = '';
@@ -317,11 +338,23 @@ export class AIAssistantPanel {
     }
 
     // Streaming indicator
-    const loadingHtml = this.isLoading
-      ? this.streamingContent
-        ? `<div class="ai-msg ai-msg-assistant ai-streaming">${formatMarkdown(this.streamingContent)}<span class="ai-cursor">&#9646;</span></div>`
-        : `<div class="ai-msg ai-msg-assistant ai-loading"><span class="ai-dots">&#8226;&#8226;&#8226;</span></div>`
-      : '';
+    let loadingHtml = '';
+    if (this.isLoading) {
+      if (this.streamingContent) {
+        const parsed = parseThinkTags(this.streamingContent);
+        if (parsed.thinking && !parsed.answer) {
+          // Still inside <think> block — show thinking indicator
+          loadingHtml = `<div class="ai-msg ai-msg-assistant ai-streaming"><div class="ai-thinking-indicator"><span class="ai-thinking-spinner"></span> ${esc(t('ai.thinking'))}</div><span class="ai-cursor">&#9646;</span></div>`;
+        } else if (parsed.thinking && parsed.answer) {
+          // Thinking done, answer streaming
+          loadingHtml = `<div class="ai-msg ai-msg-assistant ai-streaming"><details class="ai-thinking-details"><summary>${esc(t('ai.show_reasoning'))}</summary><div class="ai-thinking-content">${formatMarkdown(parsed.thinking)}</div></details>${formatMarkdown(parsed.answer)}<span class="ai-cursor">&#9646;</span></div>`;
+        } else {
+          loadingHtml = `<div class="ai-msg ai-msg-assistant ai-streaming">${formatMarkdown(this.streamingContent)}<span class="ai-cursor">&#9646;</span></div>`;
+        }
+      } else {
+        loadingHtml = `<div class="ai-msg ai-msg-assistant ai-loading"><span class="ai-dots">&#8226;&#8226;&#8226;</span></div>`;
+      }
+    }
 
     const hasHistory = this.messages.length > 0;
     const clearBtnHtml = hasHistory && !this.isLoading
@@ -704,7 +737,16 @@ export class AIAssistantPanel {
       msgContainer.appendChild(streamEl);
     }
 
-    streamEl.innerHTML = formatMarkdown(this.streamingContent) + '<span class="ai-cursor">&#9646;</span>';
+    const parsed = parseThinkTags(this.streamingContent);
+    let streamHtml: string;
+    if (parsed.thinking && !parsed.answer) {
+      streamHtml = `<div class="ai-thinking-indicator"><span class="ai-thinking-spinner"></span> ${esc(t('ai.thinking'))}</div>`;
+    } else if (parsed.thinking && parsed.answer) {
+      streamHtml = `<details class="ai-thinking-details"><summary>${esc(t('ai.show_reasoning'))}</summary><div class="ai-thinking-content">${formatMarkdown(parsed.thinking)}</div></details>${formatMarkdown(parsed.answer)}`;
+    } else {
+      streamHtml = formatMarkdown(this.streamingContent);
+    }
+    streamEl.innerHTML = streamHtml + '<span class="ai-cursor">&#9646;</span>';
 
     // Re-attach insert buttons
     streamEl.querySelectorAll<HTMLButtonElement>('.ai-insert-btn').forEach((btn) => {

@@ -99,6 +99,7 @@ export function setApiKey(provider: 'openai' | 'gemini', key: string): void {
 const STORAGE_KEY = 'appledax-ai-model';
 
 const PUTER_FAVORITES: AIModel[] = [
+  { id: 'deepseek-r1', name: 'DeepSeek R1', provider: 'deepseek' },
   { id: 'deepseek-v3', name: 'DeepSeek V3', provider: 'deepseek' },
   { id: 'gpt-5-nano', name: 'GPT-5 Nano', provider: 'openai' },
   { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash', provider: 'google' },
