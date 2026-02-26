@@ -262,6 +262,17 @@ html, body {
   letter-spacing: 0.5px;
 }
 
+/* AI toggle button in activity bar — hidden on desktop (FAB is used instead) */
+.ab-ai-btn {
+  display: none;
+}
+
+.ab-ai-btn .ab-icon {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
 /* === Sidebars (shared) === */
 .sidebar {
   display: flex;
@@ -1971,8 +1982,8 @@ html.theme-transitioning *::after {
     display: none !important;
   }
 
-  /* Activity bar stays in grid column 1 */
-  #activity-bar { grid-column: 1; grid-row: 1; }
+  /* Activity bar stays in grid column 1; position: relative for z-index stacking */
+  #activity-bar { grid-column: 1; grid-row: 1; position: relative; z-index: 45; }
   #main-area    { grid-column: 2; grid-row: 1; }
 
   /* Left sidebar: fixed overlay from left */
@@ -2045,6 +2056,11 @@ html.theme-transitioning *::after {
     min-height: 48px;
   }
 
+  /* Show AI toggle in activity bar on small screens */
+  .ab-ai-btn {
+    display: flex;
+  }
+
   /* Editor header: tighter */
   #editor-header {
     padding: 0 12px;
@@ -2094,6 +2110,7 @@ html.theme-transitioning *::after {
     flex-direction: row;
     border-right: none;
     border-top: 1px solid var(--border-default);
+    position: relative;
     z-index: 45;
     width: 100%;
     height: var(--bottom-bar-height);
@@ -2191,10 +2208,9 @@ html.theme-transitioning *::after {
     bottom: var(--bottom-bar-height);
   }
 
-  /* FAB: above bottom bar */
+  /* FAB: hidden on mobile (AI toggle in bottom bar instead) */
   #ai-fab {
-    bottom: calc(var(--bottom-bar-height) + 16px);
-    right: 16px;
+    display: none !important;
   }
 
   /* Editor header: compact */

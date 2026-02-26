@@ -242,6 +242,7 @@ function openRightSidebar(): void {
   rightSidebar.classList.remove('collapsed');
   app.classList.remove('right-collapsed');
   aiFab.classList.add('hidden');
+  document.getElementById('btn-ai-toggle')?.classList.add('active');
   localStorage.setItem(RIGHT_SIDEBAR_KEY, 'open');
 
   // On small screens, only one sidebar at a time
@@ -254,15 +255,26 @@ function closeRightSidebar(): void {
   rightSidebar.classList.add('collapsed');
   app.classList.add('right-collapsed');
   aiFab.classList.remove('hidden');
+  document.getElementById('btn-ai-toggle')?.classList.remove('active');
   localStorage.setItem(RIGHT_SIDEBAR_KEY, 'closed');
 }
 
 rightSidebarClose.addEventListener('click', closeRightSidebar);
 aiFab.addEventListener('click', openRightSidebar);
 
-// Restore right sidebar state (default: open)
+// Activity bar AI toggle button
+const aiToggleBtn = document.getElementById('btn-ai-toggle');
+aiToggleBtn?.addEventListener('click', () => {
+  if (app.classList.contains('right-collapsed')) {
+    openRightSidebar();
+  } else {
+    closeRightSidebar();
+  }
+});
+
+// Restore right sidebar state (default: open on desktop, closed on mobile)
 const savedRightSidebar = localStorage.getItem(RIGHT_SIDEBAR_KEY);
-if (savedRightSidebar === 'closed') {
+if (isSmallScreen() || savedRightSidebar === 'closed') {
   closeRightSidebar();
 } else {
   openRightSidebar();
