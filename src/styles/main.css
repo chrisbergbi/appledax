@@ -169,6 +169,7 @@ html, body {
     var(--right-sidebar-width);
   grid-template-rows: 1fr;
   height: 100vh;
+  height: 100dvh; /* dynamic viewport height — accounts for iOS Safari URL bar */
   position: relative;
 }
 
@@ -2081,14 +2082,15 @@ html.theme-transitioning *::after {
 /* ================================================ */
 @media (max-width: 767px) {
 
-  /* Grid: single column + bottom bar */
+  /* Grid: single column, full height */
   #app {
     grid-template-columns: 1fr;
-    grid-template-rows: 1fr var(--bottom-bar-height);
+    grid-template-rows: 1fr;
     --left-sidebar-width: 0px;
     --left-resize-width: 0px;
     --right-sidebar-width: 0px;
     --right-resize-width: 0px;
+    padding-bottom: calc(var(--bottom-bar-height) + env(safe-area-inset-bottom, 0px));
   }
 
   /* Hide resize handles */
@@ -2097,23 +2099,25 @@ html.theme-transitioning *::after {
     display: none !important;
   }
 
-  /* Main area fills row 1 */
+  /* Main area fills the grid */
   #main-area {
     grid-column: 1;
     grid-row: 1;
   }
 
-  /* Activity bar: horizontal bottom bar */
+  /* Activity bar: fixed bottom bar (must be position:fixed to stack above fixed sidebars on iOS) */
   #activity-bar {
-    grid-column: 1;
-    grid-row: 2;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
     flex-direction: row;
     border-right: none;
     border-top: 1px solid var(--border-default);
-    position: relative;
     z-index: 45;
     width: 100%;
-    height: var(--bottom-bar-height);
+    height: calc(var(--bottom-bar-height) + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
     overflow: visible;
   }
 
@@ -2155,13 +2159,14 @@ html.theme-transitioning *::after {
     top: 0;
     left: 0;
     right: 0;
-    bottom: var(--bottom-bar-height);
+    bottom: calc(var(--bottom-bar-height) + env(safe-area-inset-bottom, 0px));
     width: auto;
     z-index: 40;
     transform: translateX(-100%);
     transition: var(--sidebar-transition);
     box-shadow: none;
     grid-column: unset;
+    padding-top: env(safe-area-inset-top, 0px);
   }
 
   #app:not(.left-collapsed) #left-sidebar {
@@ -2180,7 +2185,7 @@ html.theme-transitioning *::after {
     top: 0;
     left: 0;
     right: 0;
-    bottom: var(--bottom-bar-height);
+    bottom: calc(var(--bottom-bar-height) + env(safe-area-inset-bottom, 0px));
     width: auto;
     z-index: 40;
     transform: translateX(100%);
@@ -2188,6 +2193,7 @@ html.theme-transitioning *::after {
     box-shadow: none;
     grid-column: unset;
     border-left: none;
+    padding-top: env(safe-area-inset-top, 0px);
   }
 
   #app:not(.right-collapsed) #right-sidebar {
@@ -2199,13 +2205,13 @@ html.theme-transitioning *::after {
     transform: translateX(100%);
   }
 
-  /* Backdrop: leave space for bottom bar */
+  /* Backdrop: leave space for fixed bottom bar */
   #app:not(.left-collapsed) .sidebar-backdrop,
   #app:not(.right-collapsed) .sidebar-backdrop {
     display: block;
     opacity: 1;
     pointer-events: auto;
-    bottom: var(--bottom-bar-height);
+    bottom: calc(var(--bottom-bar-height) + env(safe-area-inset-bottom, 0px));
   }
 
   /* FAB: hidden on mobile (AI toggle in bottom bar instead) */
@@ -2310,6 +2316,22 @@ html.theme-transitioning *::after {
   .ai-model-select {
     font-size: 10px;
     max-width: 120px;
+  }
+
+  /* Sidebar close button: large tap target on mobile */
+  .sidebar-close {
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 8px;
+  }
+
+  /* Sidebar header: ensure enough height for close button */
+  .sidebar-header {
+    min-height: 48px;
   }
 
   /* CM hover tooltip: constrain to viewport */
