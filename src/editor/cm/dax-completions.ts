@@ -3,6 +3,7 @@ import { snippetCompletion } from '@codemirror/autocomplete';
 import { getAllFunctions, getFunctionByName } from '../../knowledge/lookup';
 import { t } from '../../i18n/index';
 import * as store from '../../model/store';
+import { fuzzyMatchScore, loadRecencyMap, recordCompletionUsage, recencyBoost } from './completion-scoring';
 
 /* ── Context boost map ──────────────────────────────────── */
 
@@ -105,6 +106,24 @@ function inferArgContext(textBefore: string): ArgContextInfo | null {
   return null;
 }
 
+function trackCompletion(completion: Completion): Completion {
+  const apply = completion.apply;
+  const tracked = { ...completion };
+  if (typeof apply === 'function') {
+    tracked.apply = (view, comp, from, to) => {
+      recordCompletionUsage(completion.label);
+      apply(view, comp, from, to);
+    };
+    return tracked;
+  }
+  tracked.apply = (view, _comp, from, to) => {
+    recordCompletionUsage(completion.label);
+    const text = typeof apply === 'string' ? apply : completion.label;
+    view.dispatch({ changes: { from, to, insert: text } });
+  };
+  return tracked;
+}
+
 /* ── DAX completion source ──────────────────────────────── */
 
 export function daxCompletionSource(context: CompletionContext): CompletionResult | null {
@@ -115,6 +134,7 @@ export function daxCompletionSource(context: CompletionContext): CompletionResul
 
   const options: Completion[] = [];
   const argContext = inferArgContext(doc.sliceString(0, pos));
+  const recency = loadRecencyMap();
 
   // Check enclosing function for context boost
   const enclosingFunc = getEnclosingFunction(textBefore);
@@ -225,7 +245,7 @@ export function daxCompletionSource(context: CompletionContext): CompletionResul
         label: `'${name}'`,
         detail: `${t('ac.table')} - ${stats}`,
         type: 'class',
-        boost: argContext?.expectedType?.toLowerCase().includes('table') ? 12 : 8,
+        boost: (argContext?.expectedType?.toLowerCase().includes('table') ? 12 : 8) + recencyBoost(`'${name}'`, recency) + fuzzyMatchScore(name, word),
       });
     }
 
@@ -237,7 +257,7 @@ export function daxCompletionSource(context: CompletionContext): CompletionResul
             label: `'${col.table}'[${col.name}]`,
             detail: `${t('ac.column')} - ${col.dataType}`,
             type: 'property',
-            boost: argContext?.expectedType?.toLowerCase().includes('column') ? 10 : 6,
+            boost: (argContext?.expectedType?.toLowerCase().includes('column') ? 10 : 6) + recencyBoost(`'${col.table}'[${col.name}]`, recency) + fuzzyMatchScore(col.name, word),
           });
       }
       const allMeasures = store.getAllMeasureNames();
@@ -246,7 +266,7 @@ export function daxCompletionSource(context: CompletionContext): CompletionResul
             label: `[${m.name}]`,
             detail: `${t('ac.measure')} - ${m.table}`,
             type: 'method',
-            boost: argContext?.expectedType?.toLowerCase().includes('scalar') ? 9 : 6,
+            boost: (argContext?.expectedType?.toLowerCase().includes('scalar') ? 9 : 6) + recencyBoost(`[${m.name}]`, recency) + fuzzyMatchScore(m.name, word),
           });
       }
     }
@@ -259,7 +279,7 @@ export function daxCompletionSource(context: CompletionContext): CompletionResul
       label: v,
       detail: t('ac.var'),
       type: 'variable',
-      boost: 12,
+      boost: 12 + recencyBoost(v, recency) + fuzzyMatchScore(v, word),
     });
   }
 
@@ -285,10 +305,10 @@ export function daxCompletionSource(context: CompletionContext): CompletionResul
 
     options.push(snippetCompletion(template, {
       label: func.name,
-      detail: func.category,
+      detail: `${func.category} • returns ${func.returns}`,
       info: func.description_short,
       type: 'function',
-      boost: argTypeBoost,
+      boost: argTypeBoost + recencyBoost(func.name, recency) + fuzzyMatchScore(func.name, word),
     }));
   }
 
@@ -308,7 +328,7 @@ export function daxCompletionSource(context: CompletionContext): CompletionResul
       label: kw.label,
       detail: kw.detail,
       type: 'keyword',
-      boost: 2,
+      boost: 2 + recencyBoost(kw.label, recency) + fuzzyMatchScore(kw.label, word),
     }));
   }
 
@@ -351,9 +371,9 @@ export function daxCompletionSource(context: CompletionContext): CompletionResul
       label: p.label,
       detail: p.detail,
       type: 'text',
-      boost: 1,
+      boost: 1 + recencyBoost(p.label, recency) + fuzzyMatchScore(p.label, word),
     }));
   }
 
-  return { from, options, validFor: /^[a-zA-Z_]\w*$/ };
+  return { from, options: options.map(trackCompletion), validFor: /^[a-zA-Z_]\w*$/ };
 }

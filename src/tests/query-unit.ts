@@ -11,6 +11,7 @@ import {
 } from '../query/profile-store';
 import { QueryStateStore } from '../query/state';
 import { saveQueryHistoryItem, searchQueryHistory, togglePinnedHistoryItem } from '../query/history';
+import { fuzzyMatchScore, recencyBoost, recordCompletionUsage } from '../editor/cm/completion-scoring';
 
 function assert(condition: boolean, message: string): void {
   if (!condition) throw new Error(message);
@@ -123,9 +124,21 @@ function runHistoryTests(): void {
   assert(changed?.pinned === true, 'Expected pin toggle to set pinned=true');
 }
 
+function runCompletionScoringTests(): void {
+  installLocalStorageMock();
+  assert(fuzzyMatchScore('CALCULATE', 'cal') >= 4, 'Expected strong fuzzy score for prefix');
+  assert(fuzzyMatchScore('CALCULATE', 'clc') >= 1, 'Expected subsequence fuzzy score');
+  assert(fuzzyMatchScore('CALCULATE', 'xyz') === 0, 'Expected no fuzzy score for non-match');
+
+  recordCompletionUsage('CALCULATE');
+  const map = new Map<string, number>([['CALCULATE', Date.now()]]);
+  assert(recencyBoost('CALCULATE', map) >= 4, 'Expected positive recency boost');
+}
+
 runBenchmarkSummaryTest();
 runErrorMapTests();
 runProfileStoreTests();
 runStateStoreTests();
 runHistoryTests();
+runCompletionScoringTests();
 console.log('Query unit checks passed.');

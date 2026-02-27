@@ -31,6 +31,7 @@ function posToOffset(doc: { line(n: number): { from: number } }, line: number, c
 
 function createActions(diag: LintDiagnostic, doc: { line(n: number): { from: number; text: string }; lineAt(pos: number): { from: number; text: string }; toString(): string }): Array<{ name: string; apply: (view: { dispatch: (spec: unknown) => void }) => void }> {
   const actions: Array<{ name: string; apply: (view: { dispatch: (spec: unknown) => void }) => void }> = [];
+  const source = doc.toString();
 
   if (diag.ruleId === 'divide-suggestion') {
     const lineInfo = doc.line(diag.startLine);
@@ -109,6 +110,32 @@ function createActions(diag: LintDiagnostic, doc: { line(n: number): { from: num
         });
       },
     });
+  }
+
+  if (diag.ruleId === 'divide-missing-alternate' || diag.ruleId === 'selectedvalue-missing-default') {
+    const from = posToOffset(doc, diag.startLine, diag.startCol);
+    const to = posToOffset(doc, diag.endLine, diag.endCol);
+    const expr = source.slice(from, to);
+    const closeIdx = expr.lastIndexOf(')');
+    if (closeIdx > 0) {
+      const prefix = expr.slice(0, closeIdx);
+      const commaCount = (prefix.match(/,/g) ?? []).length;
+      const shouldInsert = diag.ruleId === 'divide-missing-alternate' ? commaCount === 1 : commaCount === 0;
+      if (shouldInsert) {
+        const insertText = `${prefix}, BLANK()${expr.slice(closeIdx)}`;
+        const fixName = diag.ruleId === 'divide-missing-alternate'
+          ? 'Fix: Add DIVIDE alternate result'
+          : 'Fix: Add SELECTEDVALUE default';
+        actions.push({
+          name: fixName,
+          apply(view) {
+            view.dispatch({
+              changes: { from, to, insert: insertText },
+            });
+          },
+        });
+      }
+    }
   }
 
   // QuickFix from the diagnostic itself (if available)
