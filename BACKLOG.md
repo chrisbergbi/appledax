@@ -91,13 +91,11 @@ Items are roughly ordered by priority within each category.
 
 ## Model Browser
 
-- [ ] **Improve model browser UI and usability**
-  The model browser tree view (`src/panels/model-browser.ts`) becomes hard to navigate with large models. Add: (1) a search/filter box at the top to find tables, columns, or measures by name, (2) alphabetical sort option alongside model-order, (3) better handling of long names (tooltip on truncation), and (4) show relationship cardinality (1:N, N:N) and join columns more explicitly. Consider collapsible category groups within tables (columns vs measures vs relationships).
-  `Effort: Medium`
+- [x] **Improve model browser UI and usability**
+  Added search/filter box, alphabetical sort toggle, collapsible category sub-headers (Columns/Measures/Relationships), relationship cardinality (1:N/N:1) with join paths, long-name tooltips, hidden column/table indicators (dimmed), calculated column badges, and "no results" feedback.
 
-- [ ] **Improve model browser: translations, comments, and overview**
-  The model browser (`src/panels/model-browser.ts`) currently shows tables, columns (with data types), measures (expression on hover), and relationships (with path). Improve by: (1) displaying translation properties when present in the model, (2) showing description/comment fields for tables, columns, and measures, and (3) improving the general overview layout — e.g. relationship cardinality, column visibility/hidden status, and clearer grouping.
-  `Effort: Medium`
+- [x] **Improve model browser: translations, comments, and overview**
+  Added TMDL culture file parsing (`parseCultureTmdl`), translated captions displayed in hover tooltips (🌐 format), description/comment fields in tooltips for columns and measures, hidden status indicators, and clearer grouping with collapsible category sections.
 
 ---
 
@@ -133,3 +131,9 @@ Items are roughly ordered by priority within each category.
 
 - [x] **Detect browser locale + language switcher**
   Auto-detect locale from saved preference, then browser language, with English fallback. Added toolbar button (NL/EN) to toggle language at runtime with full UI re-rendering.
+
+- [x] **Improve model browser UI and usability**
+  Added search/filter box, alphabetical sort toggle, collapsible category sub-headers (Columns/Measures/Relationships), relationship cardinality (1:N/N:1) with join paths, long-name tooltips, hidden column/table indicators (dimmed), calculated column badges, and "no results" feedback.
+
+- [x] **Improve model browser: translations, comments, and overview**
+  Added TMDL culture file parsing (`parseCultureTmdl`), translated captions displayed in hover tooltips (🌐 format), description/comment fields in tooltips for columns and measures, hidden status indicators, and clearer grouping with collapsible category sections.
