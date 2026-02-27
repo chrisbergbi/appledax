@@ -4,6 +4,7 @@ import { BestPracticesPanel } from './panels/best-practices';
 import { ModelBrowserPanel } from './panels/model-browser';
 import { ExpressionLibraryPanel } from './panels/expression-library';
 import { AIAssistantPanel } from './panels/ai-assistant';
+import { QueryWorkspacePanel } from './panels/query-workspace';
 import { loadDefaultModel } from './model/default-model';
 import { formatDax } from './formatter/index';
 import { detectLocale, setLocale, getLocale, applyTranslations, t } from './i18n/index';
@@ -78,6 +79,7 @@ langBtn?.addEventListener('click', () => {
 const diagnosticsPanel = new DiagnosticsPanel(editor);
 const bestPracticesPanel = new BestPracticesPanel();
 const modelBrowserPanel = new ModelBrowserPanel(editor);
+const queryWorkspacePanel = new QueryWorkspacePanel();
 const expressionLibrary = new ExpressionLibraryPanel(editor);
 const aiAssistantPanel = new AIAssistantPanel(editor);
 
@@ -85,6 +87,7 @@ const aiAssistantPanel = new AIAssistantPanel(editor);
 onLocaleChangeCallbacks.push(
   () => bestPracticesPanel.render(),
   () => modelBrowserPanel.render(),
+  () => queryWorkspacePanel.render(),
   () => diagnosticsPanel.refresh(),
   () => aiAssistantPanel.render(),
 );
