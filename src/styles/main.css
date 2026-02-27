@@ -616,11 +616,44 @@ html, body {
 
 #diagnostics-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 2px;
   padding: 0 4px;
   background: var(--surface-2);
   border-bottom: 1px solid var(--border-default);
   flex-shrink: 0;
+}
+
+.diag-controls {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.diag-profile-label {
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.diag-profile-select,
+.diag-rule-btn {
+  height: 24px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-3);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+}
+
+.diag-profile-select {
+  padding: 0 6px;
+}
+
+.diag-rule-btn {
+  padding: 0 8px;
+  cursor: pointer;
 }
 
 .diag-tab {
@@ -708,6 +741,7 @@ html, body {
 
 .diag-row:last-child { border-bottom: none; }
 .diag-row:hover { background: var(--surface-3); }
+.diag-row.active { outline: 1px solid var(--accent-primary); }
 
 .diag-row.diag-error   { border-left-color: var(--color-error); }
 .diag-row.diag-warning  { border-left-color: var(--color-warning); }

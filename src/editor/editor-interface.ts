@@ -48,6 +48,9 @@ export interface EditorAdapter {
   /** Set the theme */
   setTheme(theme: 'dark' | 'light'): void;
 
+  /** Force diagnostics/lint refresh */
+  refreshDiagnostics(): void;
+
   /** Clean up */
   dispose(): void;
 }

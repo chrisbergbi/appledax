@@ -92,6 +92,8 @@ export const calculateNakedColumn = (tokens: Token[]): LintDiagnostic[] => {
         ruleId: 'calculate-naked-column',
         quickFix: {
           title: t('qf.wrap_sum'),
+          safety: 'review',
+          confidence: 0.75,
           edits: [{
             range: {
               startLine: firstTok.line,

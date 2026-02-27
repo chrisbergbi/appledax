@@ -33,6 +33,8 @@ export const countrowsFilterPattern = (tokens: Token[]): LintDiagnostic[] => {
         ruleId: 'countrows-filter-pattern',
         quickFix: {
           title: t('qf.countrows_calculate'),
+          safety: 'risky',
+          confidence: 0.5,
           edits: [{
             range: { startLine: nonWS[i].line + 1, startCol: 1, endLine: nonWS[i].line + 1, endCol: 1 },
             text: '// Consider: CALCULATE(COUNTROWS(\'Table\'), <filter condition>)\n',

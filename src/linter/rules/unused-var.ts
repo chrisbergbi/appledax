@@ -84,6 +84,8 @@ export const unusedVar = (tokens: Token[]): LintDiagnostic[] => {
         ruleId: 'unused-var',
         quickFix: {
           title: t('qf.remove_unused_var'),
+          safety: 'review',
+          confidence: 0.8,
           edits: [{
             range: { startLine: removeLine, startCol: 1, endLine: removeEndLine, endCol: 1 },
             text: '',

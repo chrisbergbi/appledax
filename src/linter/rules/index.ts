@@ -25,6 +25,12 @@ import { allVsRemovefilters } from './all-vs-removefilters';
 import { functionCasing } from './function-casing';
 import { selectedvalueSuggestion } from './selectedvalue-suggestion';
 import { relatedValidation } from './related-validation';
+import { calculateMultiTableFilter } from './calculate-multi-table-filter';
+import { relatedRowContext } from './related-row-context';
+import { relatedtableRowContext } from './relatedtable-row-context';
+import { calculateNestedCalculateFilter } from './calculate-nested-calculate-filter';
+import { selectedvalueMissingDefault } from './selectedvalue-missing-default';
+import { divideMissingAlternate } from './divide-missing-alternate';
 
 export const allRules: LintRule[] = [
   unbalancedParens,
@@ -48,8 +54,14 @@ export const allRules: LintRule[] = [
   countrowsFilterPattern,
   allVsRemovefilters,
   selectedvalueSuggestion,
+  selectedvalueMissingDefault,
+  divideMissingAlternate,
   functionCasing,
   relatedValidation,
+  relatedRowContext,
+  relatedtableRowContext,
+  calculateMultiTableFilter,
+  calculateNestedCalculateFilter,
   unknownTable,
   unknownColumn,
   numericAggregation,

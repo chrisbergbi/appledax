@@ -49,6 +49,13 @@ export const en: Record<string, string> = {
   'diag.no_problems': 'No problems detected',
   'diag.no_filtered': 'No {severity} diagnostics',
   'diag.location': 'Ln {line}, Col {col}',
+  'diag.profile': 'Profile',
+  'diag.profile_balanced': 'Balanced',
+  'diag.profile_strict': 'Strict',
+  'diag.profile_performance': 'Performance',
+  'diag.disable_rule': 'Disable selected rule',
+  'diag.disable_rule_title': 'Disable currently selected diagnostic rule',
+  'diag.disable_rule_confirm': 'Disable rule "{rule}" for this browser profile?',
 
   // Function help panel
   'fh.parameters': 'Parameters',
@@ -93,6 +100,8 @@ export const en: Record<string, string> = {
   'ac.switch_pattern': 'SWITCH(TRUE(), ...) multi-condition pattern',
   'ac.yoy_pattern': 'Year-over-year comparison pattern',
   'ac.running_total': 'Running total / cumulative sum pattern',
+  'ac.divide_pattern': 'Safe division with alternate result',
+  'ac.selectedvalue_pattern': 'Single value with fallback default',
 
   // Autocomplete model
   'ac.table': 'Table',
@@ -146,6 +155,8 @@ export const en: Record<string, string> = {
   'lint.filter_all_pattern': 'FILTER(ALL(...)) can be slow on large tables. Consider using CALCULATE with direct boolean filter expressions instead.',
   'lint.unknown_table': "Unknown table: '{name}'. Table not found in the loaded model.",
   'lint.unknown_column': "Unknown column: [{column}] not found in table '{table}'.",
+  'lint.unknown_column_unqualified': "Unknown unqualified column: [{column}] not found in iterator context table '{table}' (or active related tables).",
+  'lint.ambiguous_unqualified_column': "Ambiguous unqualified column reference: [{column}] exists in multiple context tables. Prefer 'Table'[Column].",
   'lint.numeric_aggregation': "{func} requires a numeric column, but '{table}'[{column}] has data type '{dataType}'.",
   'lint.unknown_function': "Unknown function: '{name}'. Did you mean '{suggestion}'?",
   'lint.unknown_function_no_suggestion': "Unknown function: '{name}'. Not a recognized DAX function.",
@@ -165,6 +176,12 @@ export const en: Record<string, string> = {
   'lint.related_needs_column': "RELATED() requires a column reference ('Table'[Column]), not a table reference. Example: RELATED('Orders'[Amount]).",
   'lint.relatedtable_needs_table': "RELATEDTABLE() requires a table reference, not a column reference. Example: RELATEDTABLE('Orders').",
   'lint.related_no_relationship': "No relationship found between '{from}' and '{to}'. RELATED/RELATEDTABLE requires an active relationship between the tables.",
+  'lint.related_without_row_context': 'RELATED() is used without an iterator row context. In measures, wrap it inside an iterator like SUMX/FILTER or validate that row context exists.',
+  'lint.relatedtable_without_row_context': 'RELATEDTABLE() is used without an iterator row context. In measures, wrap it inside an iterator like SUMX/FILTER or validate that row context exists.',
+  'lint.calculate_filter_multi_table': 'A CALCULATE boolean filter argument references columns from multiple tables. Split this into separate filter arguments or use FILTER().',
+  'lint.calculate_filter_nested_calculate': 'A CALCULATE boolean filter argument contains nested CALCULATE/CALCULATETABLE, which is not supported. Rewrite this filter expression.',
+  'lint.selectedvalue_missing_default': 'SELECTEDVALUE is used without an alternate result. Consider adding a default value to avoid unexpected BLANK results.',
+  'lint.divide_missing_alternate': 'DIVIDE is used without an alternate result. Consider adding a third argument for explicit fallback behavior.',
 
   // Quick fixes (new)
   'qf.replace_function': 'Replace with {name}',

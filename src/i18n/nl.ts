@@ -49,6 +49,13 @@ export const nl: Record<string, string> = {
   'diag.no_problems': 'Geen problemen gevonden',
   'diag.no_filtered': 'Geen {severity} diagnostiek',
   'diag.location': 'Regel {line}, Kolom {col}',
+  'diag.profile': 'Profiel',
+  'diag.profile_balanced': 'Gebalanceerd',
+  'diag.profile_strict': 'Strikt',
+  'diag.profile_performance': 'Performance',
+  'diag.disable_rule': 'Geselecteerde regel uitschakelen',
+  'diag.disable_rule_title': 'Schakel de geselecteerde diagnostiekregel uit',
+  'diag.disable_rule_confirm': 'Regel "{rule}" uitschakelen voor dit browserprofiel?',
 
   // Function help panel
   'fh.parameters': 'Parameters',
@@ -93,6 +100,8 @@ export const nl: Record<string, string> = {
   'ac.switch_pattern': 'SWITCH(TRUE(), ...) meervoudig conditiepatroon',
   'ac.yoy_pattern': 'Jaar-op-jaar vergelijkingspatroon',
   'ac.running_total': 'Lopend totaal / cumulatief som patroon',
+  'ac.divide_pattern': 'Veilige deling met alternatieve uitkomst',
+  'ac.selectedvalue_pattern': 'Enkele waarde met standaard fallback',
 
   // Autocomplete model
   'ac.table': 'Tabel',
@@ -152,6 +161,8 @@ export const nl: Record<string, string> = {
   'lint.filter_all_pattern': 'FILTER(ALL(...)) kan traag zijn op grote tabellen. Overweeg CALCULATE met directe booleaanse filterexpressies.',
   'lint.unknown_table': "Onbekende tabel: '{name}'. Tabel niet gevonden in het geladen model.",
   'lint.unknown_column': "Onbekende kolom: [{column}] niet gevonden in tabel '{table}'.",
+  'lint.unknown_column_unqualified': "Onbekende niet-gekwalificeerde kolom: [{column}] niet gevonden in iterator-contexttabel '{table}' (of actieve gerelateerde tabellen).",
+  'lint.ambiguous_unqualified_column': "Ambigue niet-gekwalificeerde kolomverwijzing: [{column}] bestaat in meerdere contexttabellen. Gebruik bij voorkeur 'Tabel'[Kolom].",
   'lint.numeric_aggregation': "{func} vereist een numerieke kolom, maar '{table}'[{column}] heeft datatype '{dataType}'.",
   'lint.unknown_function': "Onbekende functie: '{name}'. Bedoelde u '{suggestion}'?",
   'lint.unknown_function_no_suggestion': "Onbekende functie: '{name}'. Dit is geen herkende DAX-functie.",
@@ -171,6 +182,12 @@ export const nl: Record<string, string> = {
   'lint.related_needs_column': "RELATED() vereist een kolomverwijzing ('Tabel'[Kolom]), geen tabelverwijzing. Voorbeeld: RELATED('Orders'[Bedrag]).",
   'lint.relatedtable_needs_table': "RELATEDTABLE() vereist een tabelverwijzing, geen kolomverwijzing. Voorbeeld: RELATEDTABLE('Orders').",
   'lint.related_no_relationship': "Geen relatie gevonden tussen '{from}' en '{to}'. RELATED/RELATEDTABLE vereist een actieve relatie tussen de tabellen.",
+  'lint.related_without_row_context': 'RELATED() wordt gebruikt zonder iterator-rijcontext. In measures: plaats het binnen een iterator zoals SUMX/FILTER of controleer dat er rijcontext is.',
+  'lint.relatedtable_without_row_context': 'RELATEDTABLE() wordt gebruikt zonder iterator-rijcontext. In measures: plaats het binnen een iterator zoals SUMX/FILTER of controleer dat er rijcontext is.',
+  'lint.calculate_filter_multi_table': 'Een CALCULATE boolean-filterargument verwijst naar kolommen uit meerdere tabellen. Splits dit in aparte filterargumenten of gebruik FILTER().',
+  'lint.calculate_filter_nested_calculate': 'Een CALCULATE boolean-filterargument bevat een geneste CALCULATE/CALCULATETABLE, wat niet wordt ondersteund. Herschrijf deze filterexpressie.',
+  'lint.selectedvalue_missing_default': 'SELECTEDVALUE wordt gebruikt zonder alternatieve uitkomst. Overweeg een standaardwaarde toe te voegen om onverwachte BLANK-resultaten te voorkomen.',
+  'lint.divide_missing_alternate': 'DIVIDE wordt gebruikt zonder alternatieve uitkomst. Overweeg een derde argument toe te voegen voor expliciet fallback-gedrag.',
 
   // Best practices
   'bp.performance': 'Prestaties',

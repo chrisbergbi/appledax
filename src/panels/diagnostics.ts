@@ -2,6 +2,7 @@ import type { LintDiagnostic } from '../types';
 import type { EditorAdapter } from '../editor/editor-interface';
 import { onDiagnosticsChanged } from '../editor/cm/dax-lint';
 import { t } from '../i18n/index';
+import { getLintConfig, getLintProfiles, setLintProfile, setRuleEnabled, type LintProfile } from '../linter/config';
 
 const SEVERITY_ICONS: Record<string, string> = {
   error: '\u2716',   // heavy X
@@ -37,6 +38,8 @@ export class DiagnosticsPanel {
         this.render();
       });
     });
+
+    this.attachConfigControls();
   }
 
   private updateStatusBar(): void {
@@ -89,6 +92,7 @@ export class DiagnosticsPanel {
     for (const diag of filtered) {
       const row = document.createElement('div');
       row.className = `diag-row diag-${diag.severity}`;
+      row.dataset.ruleId = diag.ruleId;
 
       const icon = document.createElement('span');
       icon.className = 'diag-icon';
@@ -107,6 +111,8 @@ export class DiagnosticsPanel {
       row.appendChild(location);
 
       row.addEventListener('click', () => {
+        this.container.querySelectorAll('.diag-row').forEach((r) => r.classList.remove('active'));
+        row.classList.add('active');
         this.editor.setCursorPosition(diag.startLine, diag.startCol);
         this.editor.revealLine(diag.startLine);
         this.editor.focus();
@@ -145,5 +151,50 @@ export class DiagnosticsPanel {
       void el.offsetWidth; // force reflow to restart animation
       el.classList.add('badge-pulse');
     }
+  }
+
+  private attachConfigControls(): void {
+    const tabs = document.getElementById('diagnostics-tabs');
+    if (!tabs || document.getElementById('diag-profile')) return;
+
+    const controls = document.createElement('div');
+    controls.className = 'diag-controls';
+    controls.innerHTML = `
+      <label class="diag-profile-label">${t('diag.profile')}</label>
+      <select id="diag-profile" class="diag-profile-select"></select>
+      <button id="diag-disable-rule" class="diag-rule-btn" title="${t('diag.disable_rule_title')}">${t('diag.disable_rule')}</button>
+    `;
+    tabs.appendChild(controls);
+
+    const select = controls.querySelector('#diag-profile') as HTMLSelectElement | null;
+    const config = getLintConfig();
+    if (select) {
+      for (const profile of getLintProfiles()) {
+        const option = document.createElement('option');
+        option.value = profile;
+        option.textContent = t(`diag.profile_${profile}`);
+        option.selected = config.profile === profile;
+        select.appendChild(option);
+      }
+
+      select.addEventListener('change', () => {
+        const value = select.value as LintProfile;
+        setLintProfile(value);
+        this.editor.refreshDiagnostics();
+      });
+    }
+
+    controls.querySelector('#diag-disable-rule')?.addEventListener('click', () => {
+      const selectedRow = this.container.querySelector('.diag-row.active');
+      const selectedRule = selectedRow?.getAttribute('data-rule-id');
+      if (!selectedRule) return;
+
+      const confirmDisable = window.confirm(
+        t('diag.disable_rule_confirm', { rule: selectedRule }),
+      );
+      if (!confirmDisable) return;
+      setRuleEnabled(selectedRule, false);
+      this.editor.refreshDiagnostics();
+    });
   }
 }

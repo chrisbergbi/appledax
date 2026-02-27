@@ -29,6 +29,8 @@ export const functionCasing = (tokens: Token[]): LintDiagnostic[] => {
         ruleId: 'function-casing',
         quickFix: {
           title: t('qf.uppercase_function', { name: upper }),
+          safety: 'safe',
+          confidence: 0.99,
           edits: [{
             range: {
               startLine: tk.line,

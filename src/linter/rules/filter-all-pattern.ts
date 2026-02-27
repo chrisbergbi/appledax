@@ -28,6 +28,8 @@ export const filterAllPattern = (tokens: Token[]): LintDiagnostic[] => {
         ruleId: 'filter-all-pattern',
         quickFix: {
           title: t('qf.calculate_alternative'),
+          safety: 'risky',
+          confidence: 0.5,
           edits: [{
             range: { startLine: nonWS[i].line + 1, startCol: 1, endLine: nonWS[i].line + 1, endCol: 1 },
             text: '// Consider: CALCULATE(<expr>, \'Table\'[Column] = <value>)\n',

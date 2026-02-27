@@ -73,6 +73,8 @@ export const selectedvalueSuggestion = (tokens: Token[]): LintDiagnostic[] => {
       ruleId: 'selectedvalue-suggestion',
       quickFix: {
         title: t('qf.selectedvalue_hint'),
+        safety: 'review',
+        confidence: 0.7,
         edits: [{
           range: { startLine: nonWS[i].line, startCol: 1, endLine: nonWS[i].line, endCol: 1 },
           text: '// Simplify to: SELECTEDVALUE(<column>, <default>)\n',

@@ -31,6 +31,8 @@ export interface LintDiagnostic {
 
 export interface QuickFix {
   title: string;
+  safety?: 'safe' | 'review' | 'risky';
+  confidence?: number; // 0..1 heuristic confidence
   edits: Array<{
     range: { startLine: number; startCol: number; endLine: number; endCol: number };
     text: string;

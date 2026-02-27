@@ -1,6 +1,8 @@
 import { linter, type Diagnostic } from '@codemirror/lint';
 import { tokenize } from '../../linter/lexer';
 import { allRules } from '../../linter/rules/index';
+import { applyLintConfig } from '../../linter/config';
+import { recordLintRun } from '../../linter/metrics';
 import type { LintDiagnostic } from '../../types';
 
 /* ── Severity mapping ───────────────────────────────────── */
@@ -112,8 +114,9 @@ function createActions(diag: LintDiagnostic, doc: { line(n: number): { from: num
   // QuickFix from the diagnostic itself (if available)
   if (diag.quickFix) {
     const qf = diag.quickFix;
+    const prefix = qf.safety === 'review' ? '[Review] ' : qf.safety === 'risky' ? '[Risky] ' : '';
     actions.push({
-      name: `Fix: ${qf.title}`,
+      name: `Fix: ${prefix}${qf.title}`,
       apply(view) {
         const changes = qf.edits.map((edit) => ({
           from: posToOffset(doc, edit.range.startLine, edit.range.startCol),
@@ -173,14 +176,16 @@ export const daxLinter = linter((view) => {
 
   // Sort by position
   lintDiags.sort((a, b) => a.startLine - b.startLine || a.startCol - b.startCol);
+  const configuredDiags = applyLintConfig(lintDiags);
+  recordLintRun(configuredDiags);
 
   // Store for external consumption (DiagnosticsPanel)
-  lastDiagnostics = lintDiags;
+  lastDiagnostics = configuredDiags;
   notifyListeners();
 
   // Convert to CM6 Diagnostics
   const diagnostics: Diagnostic[] = [];
-  for (const d of lintDiags) {
+  for (const d of configuredDiags) {
     try {
       const from = posToOffset(doc, d.startLine, d.startCol);
       const to = posToOffset(doc, d.endLine, d.endCol);
@@ -203,5 +208,5 @@ export const daxLinter = linter((view) => {
 
   return diagnostics;
 }, {
-  delay: 300,
+  delay: 180,
 });

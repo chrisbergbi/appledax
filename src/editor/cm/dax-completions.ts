@@ -1,6 +1,6 @@
 import type { CompletionContext, CompletionResult, Completion } from '@codemirror/autocomplete';
 import { snippetCompletion } from '@codemirror/autocomplete';
-import { getAllFunctions } from '../../knowledge/lookup';
+import { getAllFunctions, getFunctionByName } from '../../knowledge/lookup';
 import { t } from '../../i18n/index';
 import * as store from '../../model/store';
 
@@ -59,6 +59,52 @@ function extractVarNames(textBefore: string): string[] {
   return vars;
 }
 
+interface ArgContextInfo {
+  functionName: string;
+  argIndex: number;
+  expectedType: string | null;
+}
+
+function inferArgContext(textBefore: string): ArgContextInfo | null {
+  let depth = 0;
+  for (let pos = textBefore.length - 1; pos >= 0; pos--) {
+    const ch = textBefore[pos];
+    if (ch === ')') {
+      depth++;
+      continue;
+    }
+    if (ch !== '(') continue;
+    if (depth > 0) {
+      depth--;
+      continue;
+    }
+
+    let fnEnd = pos;
+    let p = pos - 1;
+    while (p >= 0 && /\s/.test(textBefore[p])) p--;
+    let fnStart = p;
+    while (fnStart >= 0 && /[a-zA-Z0-9_.]/.test(textBefore[fnStart])) fnStart--;
+    fnStart++;
+    const functionName = textBefore.slice(fnStart, fnEnd).trim().toUpperCase();
+    if (!functionName) return null;
+
+    let argIndex = 0;
+    let localDepth = 0;
+    for (let i = pos + 1; i < textBefore.length; i++) {
+      const c = textBefore[i];
+      if (c === '(') localDepth++;
+      else if (c === ')') localDepth = Math.max(0, localDepth - 1);
+      else if (c === ',' && localDepth === 0) argIndex++;
+    }
+
+    const fn = getFunctionByName(functionName);
+    const expectedType = fn?.params?.[Math.min(argIndex, Math.max(0, fn.params.length - 1))]?.type ?? null;
+    return { functionName, argIndex, expectedType };
+  }
+
+  return null;
+}
+
 /* ── DAX completion source ──────────────────────────────── */
 
 export function daxCompletionSource(context: CompletionContext): CompletionResult | null {
@@ -68,6 +114,7 @@ export function daxCompletionSource(context: CompletionContext): CompletionResul
   const textBefore = line.text.slice(0, pos - line.from);
 
   const options: Completion[] = [];
+  const argContext = inferArgContext(doc.sliceString(0, pos));
 
   // Check enclosing function for context boost
   const enclosingFunc = getEnclosingFunction(textBefore);
@@ -178,7 +225,7 @@ export function daxCompletionSource(context: CompletionContext): CompletionResul
         label: `'${name}'`,
         detail: `${t('ac.table')} - ${stats}`,
         type: 'class',
-        boost: 8,
+        boost: argContext?.expectedType?.toLowerCase().includes('table') ? 12 : 8,
       });
     }
 
@@ -186,21 +233,21 @@ export function daxCompletionSource(context: CompletionContext): CompletionResul
     if (word.length >= 2) {
       const allColumns = store.getAllColumnNames();
       for (const col of allColumns) {
-        options.push({
-          label: `'${col.table}'[${col.name}]`,
-          detail: `${t('ac.column')} - ${col.dataType}`,
-          type: 'property',
-          boost: 6,
-        });
+          options.push({
+            label: `'${col.table}'[${col.name}]`,
+            detail: `${t('ac.column')} - ${col.dataType}`,
+            type: 'property',
+            boost: argContext?.expectedType?.toLowerCase().includes('column') ? 10 : 6,
+          });
       }
       const allMeasures = store.getAllMeasureNames();
       for (const m of allMeasures) {
-        options.push({
-          label: `[${m.name}]`,
-          detail: `${t('ac.measure')} - ${m.table}`,
-          type: 'method',
-          boost: 6,
-        });
+          options.push({
+            label: `[${m.name}]`,
+            detail: `${t('ac.measure')} - ${m.table}`,
+            type: 'method',
+            boost: argContext?.expectedType?.toLowerCase().includes('scalar') ? 9 : 6,
+          });
       }
     }
   }
@@ -227,13 +274,21 @@ export function daxCompletionSource(context: CompletionContext): CompletionResul
       : `${func.name}(\${})`;
 
     const isBoosted = boostedCategories.has(func.category);
+    const expected = argContext?.expectedType?.toLowerCase() ?? '';
+    const argTypeBoost = expected.includes('table') && func.returns.toLowerCase().includes('table')
+      ? 9
+      : expected.includes('scalar') && func.returns.toLowerCase().includes('scalar')
+        ? 8
+        : isBoosted
+          ? 7
+          : 3;
 
     options.push(snippetCompletion(template, {
       label: func.name,
       detail: func.category,
       info: func.description_short,
       type: 'function',
-      boost: isBoosted ? 7 : 3,
+      boost: argTypeBoost,
     }));
   }
 
@@ -273,6 +328,21 @@ export function daxCompletionSource(context: CompletionContext): CompletionResul
       label: 'SWITCH TRUE pattern',
       template: 'SWITCH(\n    TRUE(),\n    ${condition1}, ${result1},\n    ${condition2}, ${result2},\n    ${default}\n)',
       detail: t('ac.switch_pattern'),
+    },
+    {
+      label: 'Safe DIVIDE',
+      template: 'DIVIDE(${numerator}, ${denominator}, ${alternate_result})',
+      detail: t('ac.divide_pattern'),
+    },
+    {
+      label: 'SELECTEDVALUE default',
+      template: 'SELECTEDVALUE(${column}, ${default_value})',
+      detail: t('ac.selectedvalue_pattern'),
+    },
+    {
+      label: 'Running total by date',
+      template: 'CALCULATE(\n    ${measure},\n    FILTER(\n        ALL(${date_column}),\n        ${date_column} <= MAX(${date_column})\n    )\n)',
+      detail: t('ac.running_total'),
     },
   ];
 

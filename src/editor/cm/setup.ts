@@ -3,7 +3,7 @@ import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLi
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { bracketMatching, indentOnInput, syntaxHighlighting, defaultHighlightStyle, foldGutter, foldKeymap } from '@codemirror/language';
 import { autocompletion, closeBrackets, closeBracketsKeymap, acceptCompletion } from '@codemirror/autocomplete';
-import { lintGutter, nextDiagnostic } from '@codemirror/lint';
+import { lintGutter, nextDiagnostic, forceLinting } from '@codemirror/lint';
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
 
 import { daxLanguage } from './dax-language';
@@ -262,6 +262,10 @@ export class CodeMirrorAdapter implements EditorAdapter {
     this.view.dispatch({
       effects: themeCompartment.reconfigure(ext),
     });
+  }
+
+  refreshDiagnostics(): void {
+    forceLinting(this.view);
   }
 
   dispose(): void {
