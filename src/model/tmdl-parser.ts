@@ -22,7 +22,7 @@ export function parseTmdlFiles(files: ParsedFile[]): DataModel {
 
   for (const file of files) {
     const firstLine = file.content.split('\n').find((l) => l.trim().length > 0)?.trim() ?? '';
-    if (/^culture\s+/i.test(firstLine)) {
+    if (/^cultureInfo?\s+/i.test(firstLine)) {
       const cr = parseCultureTmdl(file.content);
       if (cr) allCultures.push(cr);
       continue;
@@ -409,7 +409,7 @@ function parseRelationshipsTmdl(content: string): ModelRelationship[] {
 /**
  * Parse a TMDL culture file that contains translations.
  * Format:
- *   culture pt-PT
+ *   cultureInfo pt-PT
  *     translations
  *       model Model
  *         table Sales
@@ -422,7 +422,7 @@ function parseRelationshipsTmdl(content: string): ModelRelationship[] {
 function parseCultureTmdl(content: string): CultureResult | null {
   const lines = content.split('\n');
   const firstLine = lines.find((l) => l.trim().length > 0)?.trim() ?? '';
-  const cultureMatch = firstLine.match(/^culture\s+(.+)$/i);
+  const cultureMatch = firstLine.match(/^cultureInfo?\s+(.+)$/i);
   if (!cultureMatch) return null;
 
   const culture = cultureMatch[1].trim();
