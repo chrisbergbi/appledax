@@ -4,10 +4,104 @@ import { parseTmdlFiles } from '../model/tmdl-parser';
 import { parseJsonModel } from '../model/json-parser';
 import { restoreDefaultModel } from '../model/default-model';
 import type { EditorAdapter } from '../editor/editor-interface';
+import type { ModelTable, ModelColumn, ModelMeasure, ModelTranslation } from '../model/types';
+import type { RelatedTableInfo } from '../model/store';
+
+/* ── Helpers ────────────────────────────────────────────── */
+
+function esc(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function translationTooltip(translations?: ModelTranslation[]): string {
+  if (!translations || translations.length === 0) return '';
+  return '\n\ud83c\udf10 ' + translations.map((tr) => `${tr.culture}: ${tr.caption ?? ''}`).filter((s) => s.length > 5).join(' | ');
+}
+
+/* ── Render helpers ─────────────────────────────────────── */
+
+function renderColumnItem(table: ModelTable, c: ModelColumn): string {
+  const hiddenClass = c.isHidden ? ' mb-hidden' : '';
+  const calcBadge = c.isCalculated
+    ? `<span class="mb-calc-badge">${esc(t('mb.calculated_indicator'))}</span>`
+    : '';
+
+  let tooltip = c.name;
+  if (c.dataType) tooltip += ` (${c.dataType})`;
+  if (c.isHidden) tooltip += ` ${t('mb.hidden_indicator')}`;
+  if (c.description) tooltip += `\n${c.description}`;
+  tooltip += translationTooltip(c.translations);
+
+  return `<div class="mb-item mb-column${hiddenClass}" data-insert="'${esc(table.name)}'[${esc(c.name)}]" title="${esc(tooltip)}">
+    <span class="mb-item-icon mb-col-icon">&#9638;</span>
+    <span class="mb-item-name">${esc(c.name)}</span>
+    ${calcBadge}
+    <span class="mb-item-type">${esc(c.dataType)}</span>
+  </div>`;
+}
+
+function renderMeasureItem(_table: ModelTable, m: ModelMeasure): string {
+  let tooltip = '';
+  if (m.description) tooltip += m.description + '\n\n';
+  tooltip += m.expression;
+  tooltip += translationTooltip(m.translations);
+
+  return `<div class="mb-item mb-measure" data-insert="[${esc(m.name)}]" title="${esc(tooltip)}">
+    <span class="mb-item-icon mb-meas-icon">fx</span>
+    <span class="mb-item-name">${esc(m.name)}</span>
+  </div>`;
+}
+
+function renderRelationshipItem(table: ModelTable, rel: RelatedTableInfo): string {
+  const cardinality = rel.direction === 'to'
+    ? t('mb.cardinality_many_to_one')
+    : t('mb.cardinality_one_to_many');
+
+  const arrow = rel.crossFilteringBehavior === 'bothDirections' ? '\u2194' : '\u2192';
+  const inactiveBadge = rel.isActive
+    ? ''
+    : `<span class="mb-inactive-badge">${esc(t('mb.inactive_badge'))}</span>`;
+
+  const joinText = `${table.name}[${rel.viaColumn}] ${arrow} ${rel.table}[${rel.relatedColumn}]`;
+
+  return `<div class="mb-item mb-relationship" title="${esc(joinText)}">
+    <span class="mb-item-icon mb-rel-icon">&#8644;</span>
+    <span class="mb-item-name">${esc(rel.table)}</span>
+    <span class="mb-rel-cardinality">${esc(cardinality)}</span>
+    <span class="mb-rel-join">${esc(rel.viaColumn)} ${arrow} ${esc(rel.relatedColumn)}</span>
+    ${inactiveBadge}
+  </div>`;
+}
+
+function buildCategorySection(
+  key: string,
+  label: string,
+  count: number,
+  itemsHtml: string,
+): string {
+  if (count === 0) return '';
+  return `<div class="mb-category">
+    <div class="mb-category-header" data-category="${esc(key)}">
+      <span class="mb-category-toggle">\u25BC</span>
+      <span class="mb-category-name">${esc(label)}</span>
+      <span class="mb-category-count">${count}</span>
+    </div>
+    <div class="mb-category-body">${itemsHtml}</div>
+  </div>`;
+}
+
+/* ── Panel class ────────────────────────────────────────── */
 
 export class ModelBrowserPanel {
   private container: HTMLElement;
   private editor: EditorAdapter;
+  private searchTerm = '';
+  private sortAlpha = false;
 
   constructor(editor: EditorAdapter) {
     this.container = document.getElementById('model-browser-panel')!;
@@ -50,48 +144,76 @@ export class ModelBrowserPanel {
   private renderModel(): void {
     const stats = store.getModelStats();
     const model = store.getModel()!;
+    const searchLower = this.searchTerm.toLowerCase();
 
+    // Sort tables
+    let tables = [...model.tables];
+    if (this.sortAlpha) {
+      tables.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+    }
+
+    // Build tree
     let treeHtml = '';
-    for (const table of model.tables) {
-      const colItems = table.columns.map((c) =>
-        `<div class="mb-item mb-column" data-insert="'${esc(table.name)}'[${esc(c.name)}]">
-          <span class="mb-item-icon mb-col-icon">&#9638;</span>
-          <span class="mb-item-name">${esc(c.name)}</span>
-          <span class="mb-item-type">${esc(c.dataType)}</span>
-        </div>`
-      ).join('');
+    for (const table of tables) {
+      const tableNameMatches = !searchLower || table.name.toLowerCase().includes(searchLower);
 
-      const measureItems = table.measures.map((m) =>
-        `<div class="mb-item mb-measure" data-insert="[${esc(m.name)}]" title="${esc(m.expression)}">
-          <span class="mb-item-icon mb-meas-icon">fx</span>
-          <span class="mb-item-name">${esc(m.name)}</span>
-        </div>`
-      ).join('');
+      // Filter children
+      let filteredColumns = table.columns;
+      let filteredMeasures = table.measures;
+      let filteredRels = store.getRelatedTables(table.name);
 
-      const relatedTables = store.getRelatedTables(table.name);
-      const relItems = relatedTables.map((rel) =>
-        `<div class="mb-item mb-relationship" title="${esc(rel.viaColumn)} → ${esc(rel.relatedColumn)}">
-          <span class="mb-item-icon mb-rel-icon">&#8644;</span>
-          <span class="mb-item-name">${esc(rel.table)}</span>
-          <span class="mb-item-type">${rel.isActive ? '' : '(inactive)'}</span>
-        </div>`
-      ).join('');
+      if (searchLower && !tableNameMatches) {
+        filteredColumns = table.columns.filter((c) => c.name.toLowerCase().includes(searchLower));
+        filteredMeasures = table.measures.filter((m) => m.name.toLowerCase().includes(searchLower));
+        filteredRels = filteredRels.filter((r) => r.table.toLowerCase().includes(searchLower));
+
+        if (filteredColumns.length === 0 && filteredMeasures.length === 0 && filteredRels.length === 0) continue;
+      }
+
+      // Sort within categories
+      if (this.sortAlpha) {
+        filteredColumns = [...filteredColumns].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+        filteredMeasures = [...filteredMeasures].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+        filteredRels = [...filteredRels].sort((a, b) => a.table.localeCompare(b.table, undefined, { sensitivity: 'base' }));
+      }
+
+      // Build category sections
+      const colHtml = filteredColumns.map((c) => renderColumnItem(table, c)).join('');
+      const measHtml = filteredMeasures.map((m) => renderMeasureItem(table, m)).join('');
+      const relHtml = filteredRels.map((r) => renderRelationshipItem(table, r)).join('');
+
+      const colSection = buildCategorySection('columns', t('mb.columns_section'), filteredColumns.length, colHtml);
+      const measSection = buildCategorySection('measures', t('mb.measures_section'), filteredMeasures.length, measHtml);
+      const relSection = buildCategorySection('relationships', t('mb.relationships_section'), filteredRels.length, relHtml);
+
+      const bodyDisplay = searchLower ? 'block' : 'none';
+      const toggleChar = searchLower ? '\u25BC' : '\u25B6';
+      const tableHiddenClass = table.isHidden ? ' mb-hidden' : '';
+
+      let tableTitle = table.name;
+      if (table.isHidden) tableTitle += ` ${t('mb.hidden_indicator')}`;
+      tableTitle += translationTooltip(table.translations);
 
       treeHtml += `
         <div class="mb-table">
-          <div class="mb-table-header" data-table="${esc(table.name)}">
-            <span class="mb-toggle">&#9654;</span>
+          <div class="mb-table-header${tableHiddenClass}" data-table="${esc(table.name)}" title="${esc(tableTitle)}">
+            <span class="mb-toggle">${toggleChar}</span>
             <span class="mb-table-icon">&#9635;</span>
             <span class="mb-table-name">${esc(table.name)}</span>
             <span class="mb-table-count">${table.columns.length}c / ${table.measures.length}m</span>
           </div>
-          <div class="mb-table-body" style="display:none">
-            ${colItems}
-            ${measureItems}
-            ${relItems}
+          <div class="mb-table-body" style="display:${bodyDisplay}">
+            ${colSection}
+            ${measSection}
+            ${relSection}
           </div>
         </div>
       `;
+    }
+
+    // No results message
+    if (searchLower && treeHtml === '') {
+      treeHtml = `<div class="mb-no-results">${esc(t('mb.no_search_results'))}</div>`;
     }
 
     const isDefault = store.isDefaultModel();
@@ -101,6 +223,9 @@ export class ModelBrowserPanel {
     const clearBtnLabel = isDefault
       ? ''
       : `<button class="mb-clear-btn" id="mb-clear-btn">${esc(t('mb.clear_model'))}</button>`;
+
+    const sortIcon = this.sortAlpha ? 'A\u2193Z' : '\u2195';
+    const sortTitle = this.sortAlpha ? t('mb.sort_default_title') : t('mb.sort_az_title');
 
     this.container.innerHTML = `
       <div class="mb-upload-zone mb-upload-compact" id="mb-drop-zone">
@@ -118,13 +243,25 @@ export class ModelBrowserPanel {
         })}</span>
         ${clearBtnLabel}
       </div>
+      <div class="mb-toolbar">
+        <div class="mb-search-wrap">
+          <input type="text" class="mb-search-input" id="mb-search"
+                 placeholder="${esc(t('mb.search_placeholder'))}"
+                 value="${esc(this.searchTerm)}" />
+          ${this.searchTerm ? '<button class="mb-search-clear" id="mb-search-clear">&times;</button>' : ''}
+        </div>
+        <button class="mb-sort-btn" id="mb-sort-btn" title="${esc(sortTitle)}">${sortIcon}</button>
+      </div>
       <div class="mb-tree">${treeHtml}</div>
     `;
 
     this.attachUploadHandlers();
     this.attachTreeHandlers();
+    this.attachToolbarHandlers();
     this.attachClearHandler();
   }
+
+  /* ── Event handlers ───────────────────────────────────── */
 
   private attachUploadHandlers(): void {
     const dropZone = document.getElementById('mb-drop-zone');
@@ -179,6 +316,7 @@ export class ModelBrowserPanel {
   }
 
   private attachTreeHandlers(): void {
+    // Table header toggles
     this.container.querySelectorAll<HTMLElement>('.mb-table-header').forEach((header) => {
       header.addEventListener('click', () => {
         const body = header.nextElementSibling as HTMLElement;
@@ -193,6 +331,23 @@ export class ModelBrowserPanel {
       });
     });
 
+    // Category sub-header toggles
+    this.container.querySelectorAll<HTMLElement>('.mb-category-header').forEach((header) => {
+      header.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const body = header.nextElementSibling as HTMLElement;
+        const toggle = header.querySelector('.mb-category-toggle') as HTMLElement;
+        if (body.style.display === 'none') {
+          body.style.display = 'block';
+          toggle.textContent = '\u25BC';
+        } else {
+          body.style.display = 'none';
+          toggle.textContent = '\u25B6';
+        }
+      });
+    });
+
+    // Click item to insert reference
     this.container.querySelectorAll<HTMLElement>('.mb-item').forEach((item) => {
       item.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -205,10 +360,41 @@ export class ModelBrowserPanel {
     });
   }
 
+  private attachToolbarHandlers(): void {
+    const searchInput = document.getElementById('mb-search') as HTMLInputElement | null;
+    let searchTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    searchInput?.addEventListener('input', () => {
+      if (searchTimeout) clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        this.searchTerm = searchInput.value;
+        this.render();
+        // Restore focus
+        const newInput = document.getElementById('mb-search') as HTMLInputElement | null;
+        if (newInput) {
+          newInput.focus();
+          newInput.setSelectionRange(newInput.value.length, newInput.value.length);
+        }
+      }, 200);
+    });
+
+    document.getElementById('mb-search-clear')?.addEventListener('click', () => {
+      this.searchTerm = '';
+      this.render();
+    });
+
+    document.getElementById('mb-sort-btn')?.addEventListener('click', () => {
+      this.sortAlpha = !this.sortAlpha;
+      this.render();
+    });
+  }
+
   private attachClearHandler(): void {
     const clearBtn = document.getElementById('mb-clear-btn');
     clearBtn?.addEventListener('click', () => restoreDefaultModel());
   }
+
+  /* ── File handling ────────────────────────────────────── */
 
   private async handleFiles(fileList: FileList): Promise<void> {
     const files: Array<{ name: string; content: string }> = [];
@@ -239,12 +425,4 @@ export class ModelBrowserPanel {
       alert(t('mb.parse_error', { error: msg }));
     }
   }
-}
-
-function esc(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }

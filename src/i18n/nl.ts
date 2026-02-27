@@ -235,6 +235,18 @@ export const nl: Record<string, string> = {
   'mb.relationships_section': 'Relaties',
   'mb.no_relationships': 'Geen relaties geladen',
   'mb.parse_error': 'Fout bij het verwerken van modelbestanden: {error}',
+  'mb.search_placeholder': 'Zoek tabellen, kolommen, metingen...',
+  'mb.sort_az_title': 'Alfabetisch sorteren',
+  'mb.sort_default_title': 'Sorteren op modelvolgorde',
+  'mb.hidden_indicator': '(verborgen)',
+  'mb.calculated_indicator': 'calc',
+  'mb.cardinality_one_to_many': '1:N',
+  'mb.cardinality_many_to_one': 'N:1',
+  'mb.inactive_badge': 'inactief',
+  'mb.no_search_results': 'Geen items gevonden',
+  'mb.translations_section': 'Vertalingen',
+  'mb.translation_caption': 'Naam',
+  'mb.no_translations': 'Geen vertalingen',
 
   // Expressiebibliotheek
   'tab.expression_library': 'Opgeslagen',

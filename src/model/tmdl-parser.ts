@@ -10,11 +10,23 @@ interface ParseResult {
   relationships: ModelRelationship[];
 }
 
+interface CultureResult {
+  culture: string;
+  translations: Map<string, { caption?: string; description?: string; displayFolder?: string }>;
+}
+
 export function parseTmdlFiles(files: ParsedFile[]): DataModel {
   const allTables: ModelTable[] = [];
   const allRelationships: ModelRelationship[] = [];
+  const allCultures: CultureResult[] = [];
 
   for (const file of files) {
+    const firstLine = file.content.split('\n').find((l) => l.trim().length > 0)?.trim() ?? '';
+    if (/^culture\s+/i.test(firstLine)) {
+      const cr = parseCultureTmdl(file.content);
+      if (cr) allCultures.push(cr);
+      continue;
+    }
     const result = parseSingleTmdl(file.content);
     allTables.push(...result.tables);
     allRelationships.push(...result.relationships);
@@ -22,6 +34,34 @@ export function parseTmdlFiles(files: ParsedFile[]): DataModel {
 
   // Merge/deduplicate tables by name (case-insensitive)
   const merged = mergeTables(allTables);
+
+  // Apply culture translations to model objects
+  for (const cr of allCultures) {
+    for (const table of merged) {
+      const tableKey = table.name.toUpperCase();
+      const tableTr = cr.translations.get(tableKey);
+      if (tableTr) {
+        if (!table.translations) table.translations = [];
+        table.translations.push({ culture: cr.culture, ...tableTr });
+      }
+      for (const col of table.columns) {
+        const colKey = `${tableKey}.${col.name.toUpperCase()}`;
+        const colTr = cr.translations.get(colKey);
+        if (colTr) {
+          if (!col.translations) col.translations = [];
+          col.translations.push({ culture: cr.culture, ...colTr });
+        }
+      }
+      for (const meas of table.measures) {
+        const measKey = `${tableKey}.[${meas.name.toUpperCase()}]`;
+        const measTr = cr.translations.get(measKey);
+        if (measTr) {
+          if (!meas.translations) meas.translations = [];
+          meas.translations.push({ culture: cr.culture, ...measTr });
+        }
+      }
+    }
+  }
 
   return { tables: merged, relationships: allRelationships };
 }
@@ -364,6 +404,82 @@ function parseRelationshipsTmdl(content: string): ModelRelationship[] {
   }
 
   return relationships;
+}
+
+/**
+ * Parse a TMDL culture file that contains translations.
+ * Format:
+ *   culture pt-PT
+ *     translations
+ *       model Model
+ *         table Sales
+ *           caption: Vendas
+ *           column ProductKey
+ *             caption: Chave de Produto
+ *           measure 'Sales Amount'
+ *             caption: Total de Vendas
+ */
+function parseCultureTmdl(content: string): CultureResult | null {
+  const lines = content.split('\n');
+  const firstLine = lines.find((l) => l.trim().length > 0)?.trim() ?? '';
+  const cultureMatch = firstLine.match(/^culture\s+(.+)$/i);
+  if (!cultureMatch) return null;
+
+  const culture = cultureMatch[1].trim();
+  const translations = new Map<string, { caption?: string; description?: string; displayFolder?: string }>();
+
+  let currentTable = '';
+  let currentItemKey = '';
+
+  for (const rawLine of lines) {
+    const indent = getIndentLevel(rawLine);
+    const trimmed = rawLine.trim();
+    if (!trimmed || trimmed.startsWith('///')) continue;
+
+    // culture declaration (indent 0) — skip
+    if (indent === 0) continue;
+
+    // translations header (indent 1) — skip
+    if (/^translations$/i.test(trimmed)) continue;
+
+    // model header (indent ~2) — skip
+    if (/^model\s+/i.test(trimmed)) continue;
+
+    // table declaration
+    if (/^table\s+/i.test(trimmed)) {
+      currentTable = extractName(trimmed.replace(/^table\s+/i, ''));
+      currentItemKey = currentTable.toUpperCase();
+      continue;
+    }
+
+    // column declaration
+    if (/^column\s+/i.test(trimmed) && currentTable) {
+      const colName = extractName(trimmed.replace(/^column\s+/i, ''));
+      currentItemKey = `${currentTable.toUpperCase()}.${colName.toUpperCase()}`;
+      continue;
+    }
+
+    // measure declaration
+    if (/^measure\s+/i.test(trimmed) && currentTable) {
+      const measName = extractName(trimmed.replace(/^measure\s+/i, ''));
+      currentItemKey = `${currentTable.toUpperCase()}.[${measName.toUpperCase()}]`;
+      continue;
+    }
+
+    // Property lines (caption, description, displayFolder)
+    const propMatch = trimmed.match(/^(caption|description|displayFolder)\s*:\s*(.*)$/i);
+    if (propMatch && currentItemKey) {
+      const propName = propMatch[1].toLowerCase();
+      const propValue = propMatch[2].trim();
+      const existing = translations.get(currentItemKey) ?? {};
+      if (propName === 'caption') existing.caption = propValue;
+      else if (propName === 'description') existing.description = propValue;
+      else if (propName === 'displayfolder') existing.displayFolder = propValue;
+      translations.set(currentItemKey, existing);
+    }
+  }
+
+  return { culture, translations };
 }
 
 /**

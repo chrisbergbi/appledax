@@ -237,6 +237,18 @@ export const en: Record<string, string> = {
   'mb.relationships_section': 'Relationships',
   'mb.no_relationships': 'No relationships loaded',
   'mb.parse_error': 'Error parsing model files: {error}',
+  'mb.search_placeholder': 'Search tables, columns, measures...',
+  'mb.sort_az_title': 'Sort alphabetically',
+  'mb.sort_default_title': 'Sort by model order',
+  'mb.hidden_indicator': '(hidden)',
+  'mb.calculated_indicator': 'calc',
+  'mb.cardinality_one_to_many': '1:N',
+  'mb.cardinality_many_to_one': 'N:1',
+  'mb.inactive_badge': 'inactive',
+  'mb.no_search_results': 'No items match your search',
+  'mb.translations_section': 'Translations',
+  'mb.translation_caption': 'Caption',
+  'mb.no_translations': 'No translations',
 
   // Expression library
   'tab.expression_library': 'Saved',

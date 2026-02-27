@@ -6,6 +6,7 @@ export interface RelatedTableInfo {
   relatedColumn: string;
   isActive: boolean;
   direction: 'from' | 'to';
+  crossFilteringBehavior?: 'oneDirection' | 'bothDirections';
 }
 
 let model: DataModel | null = null;
@@ -34,6 +35,7 @@ function buildMaps(): void {
       relatedColumn: rel.toColumn,
       isActive: rel.isActive ?? true,
       direction: 'to',
+      crossFilteringBehavior: rel.crossFilteringBehavior,
     });
 
     // To table → related from table
@@ -47,6 +49,7 @@ function buildMaps(): void {
       relatedColumn: rel.fromColumn,
       isActive: rel.isActive ?? true,
       direction: 'from',
+      crossFilteringBehavior: rel.crossFilteringBehavior,
     });
   }
 }
@@ -144,4 +147,19 @@ export function getModelStats(): { tables: number; columns: number; measures: nu
     measures += table.measures.length;
   }
   return { tables: model.tables.length, columns, measures, relationships: model.relationships.length };
+}
+
+export function getAvailableCultures(): string[] {
+  if (!model) return [];
+  const cultures = new Set<string>();
+  for (const table of model.tables) {
+    for (const tr of table.translations ?? []) cultures.add(tr.culture);
+    for (const col of table.columns) {
+      for (const tr of col.translations ?? []) cultures.add(tr.culture);
+    }
+    for (const meas of table.measures) {
+      for (const tr of meas.translations ?? []) cultures.add(tr.culture);
+    }
+  }
+  return [...cultures].sort();
 }
