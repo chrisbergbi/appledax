@@ -51,6 +51,23 @@ export class QueryStateStore {
       id: createId(),
       name,
       queryText: 'EVALUATE\n    ROW("Sample", 1)',
+      dirty: false,
+      lastRunStatus: 'idle',
+    };
+    this.tabs.push(tab);
+    this.activeTabId = tab.id;
+    this.persist();
+    return tab;
+  }
+
+  public duplicateTab(tabId: string): QueryTab | null {
+    const original = this.tabs.find((tab) => tab.id === tabId);
+    if (!original) return null;
+    const tab: QueryTab = {
+      ...original,
+      id: createId(),
+      name: `${original.name} Copy`,
+      dirty: true,
     };
     this.tabs.push(tab);
     this.activeTabId = tab.id;
@@ -79,7 +96,17 @@ export class QueryStateStore {
   public setQueryText(tabId: string, text: string): void {
     const tab = this.tabs.find((t) => t.id === tabId);
     if (!tab) return;
+    const changed = tab.queryText !== text;
     tab.queryText = text;
+    if (changed) tab.dirty = true;
+    this.persist();
+  }
+
+  public setTabRunStatus(tabId: string, status: QueryRunStatus): void {
+    const tab = this.tabs.find((t) => t.id === tabId);
+    if (!tab) return;
+    tab.lastRunStatus = status;
+    tab.dirty = status === 'success' ? false : tab.dirty;
     this.persist();
   }
 
@@ -89,10 +116,15 @@ export class QueryStateStore {
       if (!raw) return defaultState();
       const parsed = JSON.parse(raw) as PersistedQueryState;
       if (!Array.isArray(parsed.tabs) || parsed.tabs.length === 0) return defaultState();
-      const activeExists = parsed.tabs.some((t) => t.id === parsed.activeTabId);
+      const normalizedTabs = parsed.tabs.map((tab) => ({
+        ...tab,
+        dirty: typeof tab.dirty === 'boolean' ? tab.dirty : false,
+        lastRunStatus: tab.lastRunStatus ?? 'idle',
+      }));
+      const activeExists = normalizedTabs.some((t) => t.id === parsed.activeTabId);
       return {
-        tabs: parsed.tabs,
-        activeTabId: activeExists ? parsed.activeTabId : parsed.tabs[0].id,
+        tabs: normalizedTabs,
+        activeTabId: activeExists ? parsed.activeTabId : normalizedTabs[0].id,
       };
     } catch {
       return defaultState();
@@ -117,6 +149,8 @@ function defaultState(): PersistedQueryState {
     id: createId(),
     name: 'Query 1',
     queryText: 'EVALUATE\n    ROW("Sample", 1)',
+    dirty: false,
+    lastRunStatus: 'idle',
   };
   return {
     tabs: [tab],

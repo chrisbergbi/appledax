@@ -10,6 +10,7 @@ export interface QueryConnection {
   mode: QueryConnectionMode;
   workspaceId: string;
   datasetId: string;
+  workspaceName?: string;
   datasetName?: string;
   connectionRef?: QueryConnectionRef;
 }
@@ -59,6 +60,8 @@ export interface QueryTab {
   id: string;
   name: string;
   queryText: string;
+  dirty: boolean;
+  lastRunStatus: QueryRunStatus;
 }
 
 export interface QueryErrorDetails {
@@ -66,4 +69,20 @@ export interface QueryErrorDetails {
   code: string;
   message: string;
   suggestion?: string;
+}
+
+export interface QueryProfile {
+  id: string;
+  name: string;
+  mode: QueryConnectionMode;
+  tenantId: string;
+  clientId: string;
+  redirectUri: string;
+  workspaceId: string;
+  datasetId: string;
+  accessToken: string;
+  sessionId: string;
+  expiresAt: number;
+  createdAt: number;
+  updatedAt: number;
 }
