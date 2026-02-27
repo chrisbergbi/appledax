@@ -1059,6 +1059,12 @@ html, body {
   margin-bottom: 6px;
 }
 
+.qw-timeline-controls {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
 .qw-timeline-row {
   display: grid;
   grid-template-columns: auto 1fr auto;
@@ -1106,6 +1112,11 @@ html, body {
 .qw-timeline-empty {
   margin-top: 8px;
   color: var(--text-ghost);
+  font-size: 12px;
+}
+
+.qw-benchmark-reco {
+  color: var(--text-secondary);
   font-size: 12px;
 }
 

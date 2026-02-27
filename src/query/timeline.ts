@@ -8,6 +8,8 @@ export interface QueryTimelineEvent {
   message: string;
 }
 
+export type TimelineFilter = 'all' | 'errors' | 'running';
+
 const STORAGE_KEY = 'appledax-query-timeline';
 const MAX_ITEMS = 120;
 
@@ -37,6 +39,22 @@ export function recordQueryTimelineEvent(kind: QueryTimelineEvent['kind'], statu
   } catch {
     // ignore
   }
+}
+
+export function clearQueryTimeline(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+export function filterQueryTimeline(events: QueryTimelineEvent[], filter: TimelineFilter): QueryTimelineEvent[] {
+  if (filter === 'all') return events;
+  if (filter === 'errors') {
+    return events.filter((event) => event.status === 'error' || event.status === 'cancelled');
+  }
+  return events.filter((event) => event.status === 'running');
 }
 
 function createId(): string {

@@ -13,9 +13,9 @@ import { QueryStateStore } from '../query/state';
 import { saveQueryHistoryItem, searchQueryHistory, togglePinnedHistoryItem } from '../query/history';
 import { fuzzyMatchScore, recencyBoost, recordCompletionUsage } from '../editor/cm/completion-scoring';
 import { benchmarkHint, getBenchmarkPresetConfig } from '../query/benchmark-presets';
-import { assessBenchmark } from '../query/benchmark';
+import { assessBenchmark, benchmarkRecommendation } from '../query/benchmark';
 import { buildSnapshot, parseSnapshot } from '../query/snapshot';
-import { loadQueryTimeline, recordQueryTimelineEvent } from '../query/timeline';
+import { clearQueryTimeline, filterQueryTimeline, loadQueryTimeline, recordQueryTimelineEvent } from '../query/timeline';
 
 function assert(condition: boolean, message: string): void {
   if (!condition) throw new Error(message);
@@ -154,6 +154,7 @@ function runBenchmarkAssessmentTests(): void {
   assert(assessBenchmark(300, 700) === 'good', 'Expected good assessment');
   assert(assessBenchmark(700, 1200) === 'fair', 'Expected fair assessment');
   assert(assessBenchmark(1500, 3200) === 'needs_attention', 'Expected needs_attention assessment');
+  assert(benchmarkRecommendation('excellent').length > 0, 'Expected recommendation text');
 }
 
 function runSnapshotTests(): void {
@@ -176,6 +177,10 @@ function runTimelineTests(): void {
   const events = loadQueryTimeline();
   assert(events.length === 2, `Expected 2 timeline events, got ${events.length}`);
   assert(events[0].status === 'success', 'Expected newest timeline event first');
+  assert(filterQueryTimeline(events, 'errors').length === 0, 'Expected no error events in filter');
+  assert(filterQueryTimeline(events, 'running').length === 1, 'Expected one running event in filter');
+  clearQueryTimeline();
+  assert(loadQueryTimeline().length === 0, 'Expected timeline clear to remove all events');
 }
 
 runBenchmarkSummaryTest();

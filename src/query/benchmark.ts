@@ -25,6 +25,13 @@ export function assessBenchmark(medianMs: number, p95Ms: number): BenchmarkAsses
   return 'needs_attention';
 }
 
+export function benchmarkRecommendation(assessment: BenchmarkAssessment): string {
+  if (assessment === 'excellent') return 'Keep this pattern; changes are likely unnecessary.';
+  if (assessment === 'good') return 'Acceptable for most reports; optimize only if this is frequently queried.';
+  if (assessment === 'fair') return 'Review filter granularity and iterator usage for faster execution.';
+  return 'Prioritize optimization: simplify filters, reduce cardinality, and benchmark alternatives.';
+}
+
 function percentile(values: number[], p: number): number {
   if (values.length === 0) return 0;
   const idx = Math.min(values.length - 1, Math.max(0, Math.floor(p * (values.length - 1))));

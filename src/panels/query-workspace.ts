@@ -4,9 +4,9 @@ import { executeQuery, benchmarkQuery, isQueryErrorDetails } from '../query/exec
 import { loadQueryHistory, saveQueryHistoryItem, searchQueryHistory, togglePinnedHistoryItem } from '../query/history';
 import { exportResultAsCsv } from '../query/export';
 import { benchmarkHint, getBenchmarkPresetConfig, type BenchmarkPreset } from '../query/benchmark-presets';
-import { assessBenchmark } from '../query/benchmark';
+import { assessBenchmark, benchmarkRecommendation } from '../query/benchmark';
 import { buildSnapshot, exportSnapshot, parseSnapshot } from '../query/snapshot';
-import { loadQueryTimeline, recordQueryTimelineEvent } from '../query/timeline';
+import { clearQueryTimeline, filterQueryTimeline, loadQueryTimeline, recordQueryTimelineEvent, type TimelineFilter } from '../query/timeline';
 import {
   createProfile,
   deleteProfile,
@@ -65,6 +65,7 @@ export class QueryWorkspacePanel {
   private currentResultPage = 1;
   private rowCap = 500;
   private benchmarkPreset: BenchmarkPreset = 'standard';
+  private timelineFilter: TimelineFilter = 'all';
 
   constructor() {
     this.container = document.getElementById('query-workspace-panel')!;
@@ -268,12 +269,14 @@ export class QueryWorkspacePanel {
   private renderBenchmark(result: BenchmarkResult): string {
     const runs = result.runs.map((run) => `<li>#${run.run}: ${run.elapsedMs}ms</li>`).join('');
     const assessment = assessBenchmark(result.medianMs, result.p95Ms);
+    const recommendation = benchmarkRecommendation(assessment);
     return `<div class="qw-benchmark">
       <div>${esc(t('qw.benchmark_median'))}: ${result.medianMs.toFixed(1)}ms</div>
       <div>${esc(t('qw.benchmark_p95'))}: ${result.p95Ms.toFixed(1)}ms</div>
       <div>${esc(t('qw.benchmark_stddev'))}: ${result.stdDevMs.toFixed(1)}ms</div>
       <div>${esc(t('qw.benchmark_hint'))}: ${esc(benchmarkHint(this.benchmarkPreset))}</div>
       <div>${esc(t('qw.benchmark_assessment'))}: ${esc(t(`qw.benchmark_assessment_${assessment}`))}</div>
+      <div class="qw-benchmark-reco">${esc(t('qw.benchmark_recommendation'))}: ${esc(recommendation)}</div>
       <ul>${runs}</ul>
     </div>`;
   }
@@ -296,9 +299,17 @@ export class QueryWorkspacePanel {
   }
 
   private renderTimeline(): string {
-    const events = loadQueryTimeline().slice(0, 6);
+    const events = filterQueryTimeline(loadQueryTimeline(), this.timelineFilter).slice(0, 6);
+    const controls = `<div class="qw-timeline-controls">
+      <select id="qw-timeline-filter" class="qw-input qw-small-input">
+        <option value="all"${this.timelineFilter === 'all' ? ' selected' : ''}>${esc(t('qw.timeline_filter_all'))}</option>
+        <option value="errors"${this.timelineFilter === 'errors' ? ' selected' : ''}>${esc(t('qw.timeline_filter_errors'))}</option>
+        <option value="running"${this.timelineFilter === 'running' ? ' selected' : ''}>${esc(t('qw.timeline_filter_running'))}</option>
+      </select>
+      <button id="qw-timeline-clear" class="qw-mini-btn">${esc(t('qw.timeline_clear'))}</button>
+    </div>`;
     if (events.length === 0) {
-      return `<div class="qw-timeline-empty">${esc(t('qw.timeline_empty'))}</div>`;
+      return `<div class="qw-timeline"><div class="qw-timeline-title">${esc(t('qw.timeline_title'))}</div>${controls}<div class="qw-timeline-empty">${esc(t('qw.timeline_empty'))}</div></div>`;
     }
     const rows = events.map((event) => {
       const when = new Date(event.createdAt).toLocaleTimeString();
@@ -308,7 +319,7 @@ export class QueryWorkspacePanel {
         <span class="qw-timeline-time">${esc(when)}</span>
       </div>`;
     }).join('');
-    return `<div class="qw-timeline"><div class="qw-timeline-title">${esc(t('qw.timeline_title'))}</div>${rows}</div>`;
+    return `<div class="qw-timeline"><div class="qw-timeline-title">${esc(t('qw.timeline_title'))}</div>${controls}${rows}</div>`;
   }
 
   private renderComparisonSummary(history: Array<{ id: string; elapsedMs: number; rowCount: number; warnings: string[] }>): string {
@@ -567,6 +578,17 @@ export class QueryWorkspacePanel {
     });
     this.container.querySelector('#qw-page-next')?.addEventListener('click', () => {
       this.currentResultPage += 1;
+      this.render();
+    });
+
+    const timelineFilter = this.container.querySelector('#qw-timeline-filter') as HTMLSelectElement | null;
+    timelineFilter?.addEventListener('change', () => {
+      const next = timelineFilter.value;
+      this.timelineFilter = next === 'errors' || next === 'running' ? next : 'all';
+      this.render();
+    });
+    this.container.querySelector('#qw-timeline-clear')?.addEventListener('click', () => {
+      clearQueryTimeline();
       this.render();
     });
 
