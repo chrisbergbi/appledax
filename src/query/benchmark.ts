@@ -16,6 +16,15 @@ export function summarizeBenchmark(runs: BenchmarkRun[]): Omit<BenchmarkResult, 
   };
 }
 
+export type BenchmarkAssessment = 'excellent' | 'good' | 'fair' | 'needs_attention';
+
+export function assessBenchmark(medianMs: number, p95Ms: number): BenchmarkAssessment {
+  if (medianMs <= 150 && p95Ms <= 300) return 'excellent';
+  if (medianMs <= 400 && p95Ms <= 800) return 'good';
+  if (medianMs <= 900 && p95Ms <= 1800) return 'fair';
+  return 'needs_attention';
+}
+
 function percentile(values: number[], p: number): number {
   if (values.length === 0) return 0;
   const idx = Math.min(values.length - 1, Math.max(0, Math.floor(p * (values.length - 1))));

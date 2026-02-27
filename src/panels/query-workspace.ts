@@ -4,6 +4,9 @@ import { executeQuery, benchmarkQuery, isQueryErrorDetails } from '../query/exec
 import { loadQueryHistory, saveQueryHistoryItem, searchQueryHistory, togglePinnedHistoryItem } from '../query/history';
 import { exportResultAsCsv } from '../query/export';
 import { benchmarkHint, getBenchmarkPresetConfig, type BenchmarkPreset } from '../query/benchmark-presets';
+import { assessBenchmark } from '../query/benchmark';
+import { buildSnapshot, exportSnapshot, parseSnapshot } from '../query/snapshot';
+import { loadQueryTimeline, recordQueryTimelineEvent } from '../query/timeline';
 import {
   createProfile,
   deleteProfile,
@@ -94,6 +97,7 @@ export class QueryWorkspacePanel {
     const resultHtml = this.latestResult ? this.renderResultTable(this.latestResult) : '';
     const benchmarkHtml = this.latestBenchmark ? this.renderBenchmark(this.latestBenchmark) : '';
     const diagnosticsSummaryHtml = this.renderDiagnosticsSummary(profile);
+    const timelineHtml = this.renderTimeline();
     const warningHtml = this.latestResult && this.latestResult.warnings.length > 0
       ? `<div class="qw-warning">${this.latestResult.warnings.map((w) => esc(w.message)).join('<br>')}</div>`
       : '';
@@ -172,6 +176,9 @@ export class QueryWorkspacePanel {
           <button id="qw-cancel" class="qw-btn-secondary" ${status === 'running' ? '' : 'disabled'}>${esc(t('qw.cancel'))}</button>
           <button id="qw-benchmark" class="qw-btn-secondary" ${status === 'running' ? 'disabled' : ''}>${esc(t('qw.benchmark'))}</button>
           <button id="qw-export" class="qw-btn-secondary" ${this.latestResult ? '' : 'disabled'}>${esc(t('qw.export_csv'))}</button>
+          <button id="qw-export-snapshot" class="qw-btn-secondary" ${(this.latestResult || this.latestBenchmark) ? '' : 'disabled'}>${esc(t('qw.snapshot_export'))}</button>
+          <button id="qw-import-snapshot" class="qw-btn-secondary">${esc(t('qw.snapshot_import'))}</button>
+          <input id="qw-snapshot-file" type="file" accept="application/json" class="qw-hidden-input">
           <label class="qw-inline">
             ${esc(t('qw.benchmark_preset'))}
             <select id="qw-benchmark-preset" class="qw-input qw-small-input">
@@ -202,6 +209,7 @@ export class QueryWorkspacePanel {
           ${this.latestResult ? `<div class="qw-meta">${esc(t('qw.elapsed'))}: ${this.latestResult.elapsedMs}ms · ${esc(t('qw.rows'))}: ${this.latestResult.rows.length} · ${esc(t('qw.truncated'))}: ${this.latestResult.truncated ? esc(t('qw.yes')) : esc(t('qw.no'))} · ${esc(t('qw.request_id'))}: ${esc(this.latestResult.requestId)}</div>` : ''}
           ${resultHtml}
           ${benchmarkHtml}
+          ${timelineHtml}
         </div>
 
         <div class="qw-history">
@@ -259,11 +267,13 @@ export class QueryWorkspacePanel {
 
   private renderBenchmark(result: BenchmarkResult): string {
     const runs = result.runs.map((run) => `<li>#${run.run}: ${run.elapsedMs}ms</li>`).join('');
+    const assessment = assessBenchmark(result.medianMs, result.p95Ms);
     return `<div class="qw-benchmark">
       <div>${esc(t('qw.benchmark_median'))}: ${result.medianMs.toFixed(1)}ms</div>
       <div>${esc(t('qw.benchmark_p95'))}: ${result.p95Ms.toFixed(1)}ms</div>
       <div>${esc(t('qw.benchmark_stddev'))}: ${result.stdDevMs.toFixed(1)}ms</div>
       <div>${esc(t('qw.benchmark_hint'))}: ${esc(benchmarkHint(this.benchmarkPreset))}</div>
+      <div>${esc(t('qw.benchmark_assessment'))}: ${esc(t(`qw.benchmark_assessment_${assessment}`))}</div>
       <ul>${runs}</ul>
     </div>`;
   }
@@ -283,6 +293,22 @@ export class QueryWorkspacePanel {
       <div><strong>${esc(t('qw.diag_connection'))}:</strong> ${esc(connectionState)}</div>
       <div><strong>${esc(t('qw.diag_request'))}:</strong> ${esc(lastReq)}</div>
     </div>`;
+  }
+
+  private renderTimeline(): string {
+    const events = loadQueryTimeline().slice(0, 6);
+    if (events.length === 0) {
+      return `<div class="qw-timeline-empty">${esc(t('qw.timeline_empty'))}</div>`;
+    }
+    const rows = events.map((event) => {
+      const when = new Date(event.createdAt).toLocaleTimeString();
+      return `<div class="qw-timeline-row">
+        <span class="qw-timeline-tag ${esc(event.status)}">${esc(event.kind)}</span>
+        <span>${esc(event.message)}</span>
+        <span class="qw-timeline-time">${esc(when)}</span>
+      </div>`;
+    }).join('');
+    return `<div class="qw-timeline"><div class="qw-timeline-title">${esc(t('qw.timeline_title'))}</div>${rows}</div>`;
   }
 
   private renderComparisonSummary(history: Array<{ id: string; elapsedMs: number; rowCount: number; warnings: string[] }>): string {
@@ -493,6 +519,48 @@ export class QueryWorkspacePanel {
       exportResultAsCsv(`query-result-${Date.now()}`, this.latestResult);
     });
 
+    this.container.querySelector('#qw-export-snapshot')?.addEventListener('click', () => {
+      const active = this.state.getActiveTab();
+      const profile = this.getActiveProfile();
+      const connection = this.getConnection(profile);
+      const snapshot = buildSnapshot(active.queryText, connection, this.latestResult, this.latestBenchmark);
+      exportSnapshot(`query-snapshot-${Date.now()}`, snapshot);
+    });
+
+    this.container.querySelector('#qw-import-snapshot')?.addEventListener('click', () => {
+      const input = this.container.querySelector('#qw-snapshot-file') as HTMLInputElement | null;
+      input?.click();
+    });
+
+    const snapshotFile = this.container.querySelector('#qw-snapshot-file') as HTMLInputElement | null;
+    snapshotFile?.addEventListener('change', async () => {
+      const file = snapshotFile.files?.[0];
+      if (!file) return;
+      const text = await file.text();
+      const snapshot = parseSnapshot(text);
+      if (!snapshot) {
+        this.latestError = { status: 400, code: 'SNAPSHOT_INVALID', message: t('qw.snapshot_invalid') };
+        this.latestErrorRaw = '';
+        this.state.setRunStatus('error');
+        this.render();
+        return;
+      }
+      const activeTabId = this.state.getActiveTabId();
+      this.state.setQueryText(activeTabId, snapshot.queryText);
+      this.updateActiveProfile({
+        mode: snapshot.connection.mode,
+        workspaceId: snapshot.connection.workspaceId,
+        datasetId: snapshot.connection.datasetId,
+      });
+      this.latestResult = snapshot.result ?? null;
+      this.latestBenchmark = snapshot.benchmark ?? null;
+      this.latestError = null;
+      this.latestErrorRaw = '';
+      this.currentResultPage = 1;
+      await this.refreshWorkspaces();
+      this.render();
+    });
+
     this.container.querySelector('#qw-page-prev')?.addEventListener('click', () => {
       this.currentResultPage = Math.max(1, this.currentResultPage - 1);
       this.render();
@@ -587,6 +655,7 @@ export class QueryWorkspacePanel {
     this.latestBenchmark = null;
     this.state.setRunStatus('running');
     this.state.setTabRunStatus(active.id, 'running');
+    recordQueryTimelineEvent('run', 'running', t('qw.timeline_run_started'));
     this.runAbortController = new AbortController();
     this.render();
 
@@ -606,20 +675,24 @@ export class QueryWorkspacePanel {
       saveQueryHistoryItem(active.queryText, connection, this.latestResult);
       this.state.setRunStatus('success');
       this.state.setTabRunStatus(active.id, 'success');
+      recordQueryTimelineEvent('run', 'success', `${t('qw.timeline_run_success')} (${this.latestResult.elapsedMs}ms)`);
     } catch (err) {
       if ((err as Error).name === 'AbortError') {
         this.state.setRunStatus('cancelled');
         this.state.setTabRunStatus(active.id, 'cancelled');
+        recordQueryTimelineEvent('run', 'cancelled', t('qw.timeline_run_cancelled'));
       } else if (isQueryErrorDetails(err)) {
         this.latestError = err;
         this.latestErrorRaw = '';
         this.state.setRunStatus('error');
         this.state.setTabRunStatus(active.id, 'error');
+        recordQueryTimelineEvent('run', 'error', `${t('qw.timeline_run_error')}: ${err.code}`);
       } else {
         this.latestError = { status: 500, code: 'UNKNOWN', message: t('qw.error_unknown') };
         this.latestErrorRaw = String(err);
         this.state.setRunStatus('error');
         this.state.setTabRunStatus(active.id, 'error');
+        recordQueryTimelineEvent('run', 'error', t('qw.timeline_run_error'));
       }
     } finally {
       this.runAbortController = null;
@@ -642,6 +715,7 @@ export class QueryWorkspacePanel {
       });
       if (response.ok) {
         this.preflightStatus = { ok: true, message: t('qw.preflight_ok') };
+        recordQueryTimelineEvent('preflight', 'success', t('qw.timeline_preflight_success'));
         return true;
       }
       const payload = await response.json().catch(() => null) as { checks?: Array<{ code: string; message: string; hint?: string }>; error?: string } | null;
@@ -656,6 +730,7 @@ export class QueryWorkspacePanel {
       this.latestErrorRaw = payload ? JSON.stringify(payload, null, 2) : '';
       this.preflightStatus = { ok: false, message: this.latestError.message };
       this.state.setRunStatus('error');
+      recordQueryTimelineEvent('preflight', 'error', t('qw.timeline_preflight_error'));
       if (!manualCheck) this.render();
       return false;
     } catch {
@@ -663,6 +738,7 @@ export class QueryWorkspacePanel {
       this.latestErrorRaw = '';
       this.preflightStatus = { ok: false, message: t('qw.error_preflight') };
       this.state.setRunStatus('error');
+      recordQueryTimelineEvent('preflight', 'error', t('qw.timeline_preflight_error'));
       if (!manualCheck) this.render();
       return false;
     }
@@ -717,6 +793,7 @@ export class QueryWorkspacePanel {
     this.latestResult = null;
     this.state.setRunStatus('running');
     this.state.setTabRunStatus(active.id, 'running');
+    recordQueryTimelineEvent('benchmark', 'running', t('qw.timeline_benchmark_started'));
     this.runAbortController = new AbortController();
     this.render();
 
@@ -731,20 +808,24 @@ export class QueryWorkspacePanel {
       );
       this.state.setRunStatus('success');
       this.state.setTabRunStatus(active.id, 'success');
+      recordQueryTimelineEvent('benchmark', 'success', `${t('qw.timeline_benchmark_success')} (${this.latestBenchmark.medianMs.toFixed(1)}ms)`);
     } catch (err) {
       if ((err as Error).name === 'AbortError') {
         this.state.setRunStatus('cancelled');
         this.state.setTabRunStatus(active.id, 'cancelled');
+        recordQueryTimelineEvent('benchmark', 'cancelled', t('qw.timeline_benchmark_cancelled'));
       } else if (isQueryErrorDetails(err)) {
         this.latestError = err;
         this.latestErrorRaw = '';
         this.state.setRunStatus('error');
         this.state.setTabRunStatus(active.id, 'error');
+        recordQueryTimelineEvent('benchmark', 'error', `${t('qw.timeline_benchmark_error')}: ${err.code}`);
       } else {
         this.latestError = { status: 500, code: 'UNKNOWN', message: t('qw.error_unknown') };
         this.latestErrorRaw = String(err);
         this.state.setRunStatus('error');
         this.state.setTabRunStatus(active.id, 'error');
+        recordQueryTimelineEvent('benchmark', 'error', t('qw.timeline_benchmark_error'));
       }
     } finally {
       this.runAbortController = null;

@@ -13,6 +13,9 @@ import { QueryStateStore } from '../query/state';
 import { saveQueryHistoryItem, searchQueryHistory, togglePinnedHistoryItem } from '../query/history';
 import { fuzzyMatchScore, recencyBoost, recordCompletionUsage } from '../editor/cm/completion-scoring';
 import { benchmarkHint, getBenchmarkPresetConfig } from '../query/benchmark-presets';
+import { assessBenchmark } from '../query/benchmark';
+import { buildSnapshot, parseSnapshot } from '../query/snapshot';
+import { loadQueryTimeline, recordQueryTimelineEvent } from '../query/timeline';
 
 function assert(condition: boolean, message: string): void {
   if (!condition) throw new Error(message);
@@ -146,6 +149,35 @@ function runBenchmarkPresetTests(): void {
   assert(benchmarkHint('quick').length > 0, 'Expected benchmark hint text');
 }
 
+function runBenchmarkAssessmentTests(): void {
+  assert(assessBenchmark(120, 250) === 'excellent', 'Expected excellent assessment');
+  assert(assessBenchmark(300, 700) === 'good', 'Expected good assessment');
+  assert(assessBenchmark(700, 1200) === 'fair', 'Expected fair assessment');
+  assert(assessBenchmark(1500, 3200) === 'needs_attention', 'Expected needs_attention assessment');
+}
+
+function runSnapshotTests(): void {
+  const snapshot = buildSnapshot(
+    'EVALUATE ROW(\"X\", 1)',
+    { mode: 'delegated', workspaceId: 'w1', datasetId: 'd1', workspaceName: 'WS', datasetName: 'DS' },
+    { columns: [{ name: 'X' }], rows: [{ X: 1 }], elapsedMs: 111, truncated: false, warnings: [], requestId: 'r1' },
+    null,
+  );
+  const parsed = parseSnapshot(JSON.stringify(snapshot));
+  assert(parsed !== null, 'Expected snapshot parsing to succeed');
+  assert(parsed?.connection.datasetId === 'd1', 'Expected dataset id in parsed snapshot');
+  assert(parseSnapshot('{\"version\":2}') === null, 'Expected unsupported version to fail parsing');
+}
+
+function runTimelineTests(): void {
+  installLocalStorageMock();
+  recordQueryTimelineEvent('run', 'running', 'Run started');
+  recordQueryTimelineEvent('run', 'success', 'Run succeeded');
+  const events = loadQueryTimeline();
+  assert(events.length === 2, `Expected 2 timeline events, got ${events.length}`);
+  assert(events[0].status === 'success', 'Expected newest timeline event first');
+}
+
 runBenchmarkSummaryTest();
 runErrorMapTests();
 runProfileStoreTests();
@@ -153,4 +185,7 @@ runStateStoreTests();
 runHistoryTests();
 runCompletionScoringTests();
 runBenchmarkPresetTests();
+runBenchmarkAssessmentTests();
+runSnapshotTests();
+runTimelineTests();
 console.log('Query unit checks passed.');
