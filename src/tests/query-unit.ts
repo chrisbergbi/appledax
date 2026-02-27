@@ -12,6 +12,7 @@ import {
 import { QueryStateStore } from '../query/state';
 import { saveQueryHistoryItem, searchQueryHistory, togglePinnedHistoryItem } from '../query/history';
 import { fuzzyMatchScore, recencyBoost, recordCompletionUsage } from '../editor/cm/completion-scoring';
+import { benchmarkHint, getBenchmarkPresetConfig } from '../query/benchmark-presets';
 
 function assert(condition: boolean, message: string): void {
   if (!condition) throw new Error(message);
@@ -135,10 +136,21 @@ function runCompletionScoringTests(): void {
   assert(recencyBoost('CALCULATE', map) >= 4, 'Expected positive recency boost');
 }
 
+function runBenchmarkPresetTests(): void {
+  const quick = getBenchmarkPresetConfig('quick');
+  const standard = getBenchmarkPresetConfig('standard');
+  const deep = getBenchmarkPresetConfig('deep');
+  assert(quick.iterations === 3 && quick.warmupRuns === 0, 'Expected quick preset config');
+  assert(standard.iterations === 5 && standard.warmupRuns === 1, 'Expected standard preset config');
+  assert(deep.iterations === 10 && deep.warmupRuns === 2, 'Expected deep preset config');
+  assert(benchmarkHint('quick').length > 0, 'Expected benchmark hint text');
+}
+
 runBenchmarkSummaryTest();
 runErrorMapTests();
 runProfileStoreTests();
 runStateStoreTests();
 runHistoryTests();
 runCompletionScoringTests();
+runBenchmarkPresetTests();
 console.log('Query unit checks passed.');

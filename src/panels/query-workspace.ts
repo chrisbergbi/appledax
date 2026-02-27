@@ -3,6 +3,7 @@ import { QueryStateStore } from '../query/state';
 import { executeQuery, benchmarkQuery, isQueryErrorDetails } from '../query/executors/rest-executor';
 import { loadQueryHistory, saveQueryHistoryItem, searchQueryHistory, togglePinnedHistoryItem } from '../query/history';
 import { exportResultAsCsv } from '../query/export';
+import { benchmarkHint, getBenchmarkPresetConfig, type BenchmarkPreset } from '../query/benchmark-presets';
 import {
   createProfile,
   deleteProfile,
@@ -60,6 +61,7 @@ export class QueryWorkspacePanel {
   private pageSize = 50;
   private currentResultPage = 1;
   private rowCap = 500;
+  private benchmarkPreset: BenchmarkPreset = 'standard';
 
   constructor() {
     this.container = document.getElementById('query-workspace-panel')!;
@@ -91,6 +93,7 @@ export class QueryWorkspacePanel {
     const compareHtml = this.renderComparisonSummary(history);
     const resultHtml = this.latestResult ? this.renderResultTable(this.latestResult) : '';
     const benchmarkHtml = this.latestBenchmark ? this.renderBenchmark(this.latestBenchmark) : '';
+    const diagnosticsSummaryHtml = this.renderDiagnosticsSummary(profile);
     const warningHtml = this.latestResult && this.latestResult.warnings.length > 0
       ? `<div class="qw-warning">${this.latestResult.warnings.map((w) => esc(w.message)).join('<br>')}</div>`
       : '';
@@ -170,6 +173,14 @@ export class QueryWorkspacePanel {
           <button id="qw-benchmark" class="qw-btn-secondary" ${status === 'running' ? 'disabled' : ''}>${esc(t('qw.benchmark'))}</button>
           <button id="qw-export" class="qw-btn-secondary" ${this.latestResult ? '' : 'disabled'}>${esc(t('qw.export_csv'))}</button>
           <label class="qw-inline">
+            ${esc(t('qw.benchmark_preset'))}
+            <select id="qw-benchmark-preset" class="qw-input qw-small-input">
+              <option value="quick"${this.benchmarkPreset === 'quick' ? ' selected' : ''}>${esc(t('qw.benchmark_preset_quick'))}</option>
+              <option value="standard"${this.benchmarkPreset === 'standard' ? ' selected' : ''}>${esc(t('qw.benchmark_preset_standard'))}</option>
+              <option value="deep"${this.benchmarkPreset === 'deep' ? ' selected' : ''}>${esc(t('qw.benchmark_preset_deep'))}</option>
+            </select>
+          </label>
+          <label class="qw-inline">
             ${esc(t('qw.page_size'))}
             <select id="qw-page-size" class="qw-input qw-small-input">
               ${[50, 100, 250].map((size) => `<option value="${size}"${size === this.pageSize ? ' selected' : ''}>${size}</option>`).join('')}
@@ -185,6 +196,7 @@ export class QueryWorkspacePanel {
         </div>
 
         <div class="qw-diagnostics">
+          ${diagnosticsSummaryHtml}
           ${warningHtml}
           ${errorHtml}
           ${this.latestResult ? `<div class="qw-meta">${esc(t('qw.elapsed'))}: ${this.latestResult.elapsedMs}ms · ${esc(t('qw.rows'))}: ${this.latestResult.rows.length} · ${esc(t('qw.truncated'))}: ${this.latestResult.truncated ? esc(t('qw.yes')) : esc(t('qw.no'))} · ${esc(t('qw.request_id'))}: ${esc(this.latestResult.requestId)}</div>` : ''}
@@ -251,7 +263,25 @@ export class QueryWorkspacePanel {
       <div>${esc(t('qw.benchmark_median'))}: ${result.medianMs.toFixed(1)}ms</div>
       <div>${esc(t('qw.benchmark_p95'))}: ${result.p95Ms.toFixed(1)}ms</div>
       <div>${esc(t('qw.benchmark_stddev'))}: ${result.stdDevMs.toFixed(1)}ms</div>
+      <div>${esc(t('qw.benchmark_hint'))}: ${esc(benchmarkHint(this.benchmarkPreset))}</div>
       <ul>${runs}</ul>
+    </div>`;
+  }
+
+  private renderDiagnosticsSummary(profile: QueryProfile): string {
+    const authState = profile.mode === 'service-principal'
+      ? t('qw.diag_auth_sp')
+      : profile.accessToken
+        ? (Date.now() < profile.expiresAt ? t('qw.diag_auth_valid') : t('qw.diag_auth_expired'))
+        : t('qw.diag_auth_missing');
+    const connectionState = profile.workspaceId && profile.datasetId
+      ? `${profile.workspaceId} / ${profile.datasetId}`
+      : t('qw.diag_connection_missing');
+    const lastReq = this.latestResult?.requestId || this.latestBenchmark?.requestId || '-';
+    return `<div class="qw-diag-summary">
+      <div><strong>${esc(t('qw.diag_auth'))}:</strong> ${esc(authState)}</div>
+      <div><strong>${esc(t('qw.diag_connection'))}:</strong> ${esc(connectionState)}</div>
+      <div><strong>${esc(t('qw.diag_request'))}:</strong> ${esc(lastReq)}</div>
     </div>`;
   }
 
@@ -418,6 +448,13 @@ export class QueryWorkspacePanel {
     const rowCapSelect = this.container.querySelector('#qw-row-cap') as HTMLSelectElement | null;
     rowCapSelect?.addEventListener('change', () => {
       this.rowCap = Math.max(1, Number(rowCapSelect.value || '500'));
+      this.render();
+    });
+
+    const benchmarkPresetSelect = this.container.querySelector('#qw-benchmark-preset') as HTMLSelectElement | null;
+    benchmarkPresetSelect?.addEventListener('change', () => {
+      const selected = benchmarkPresetSelect.value;
+      this.benchmarkPreset = selected === 'quick' || selected === 'deep' ? selected : 'standard';
       this.render();
     });
 
@@ -684,7 +721,14 @@ export class QueryWorkspacePanel {
     this.render();
 
     try {
-      this.latestBenchmark = await benchmarkQuery(request, connection, 5, 1, this.runAbortController.signal);
+      const config = getBenchmarkPresetConfig(this.benchmarkPreset);
+      this.latestBenchmark = await benchmarkQuery(
+        request,
+        connection,
+        config.iterations,
+        config.warmupRuns,
+        this.runAbortController.signal,
+      );
       this.state.setRunStatus('success');
       this.state.setTabRunStatus(active.id, 'success');
     } catch (err) {
